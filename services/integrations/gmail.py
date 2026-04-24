@@ -1,6 +1,8 @@
+import base64
 import time
 import urllib.parse
 from datetime import datetime
+from email.message import EmailMessage
 
 import requests
 
@@ -140,6 +142,169 @@ def _header(msg: dict, name: str) -> str:
         if (h.get("name") or "").lower() == name_lower:
             return h.get("value", "")
     return ""
+
+
+# ================= Tool-callable methods =================
+
+def is_connected(user_id: str) -> bool:
+    record = get_integration(user_id, "gmail")
+    return bool(record and record.get("access_token"))
+
+
+def _message_summary(token: str, mid: str, include_snippet: bool = True) -> dict | None:
+    try:
+        msg = _gmail_get(
+            token, f"/users/me/messages/{mid}",
+            {"format": "metadata",
+             "metadataHeaders": ["Subject", "From", "To", "Date"]},
+        )
+    except requests.HTTPError:
+        return None
+    return {
+        "id": mid,
+        "thread_id": msg.get("threadId"),
+        "subject": _header(msg, "Subject") or "(no subject)",
+        "from": _header(msg, "From"),
+        "to": _header(msg, "To"),
+        "date": _header(msg, "Date"),
+        "snippet": (msg.get("snippet") or "").strip() if include_snippet else None,
+        "unread": "UNREAD" in (msg.get("labelIds") or []),
+    }
+
+
+def list_recent(user_id: str, limit: int = 10, unread_only: bool = False, query: str | None = None) -> list[dict]:
+    """Return recent inbox messages (or results of a Gmail search query).
+
+    query uses Gmail's native search syntax — e.g. 'from:boss@x.com', 'is:unread',
+    'subject:invoice newer_than:7d'. Defaults to the inbox when empty.
+    """
+    token = _access_token(user_id)
+    if not token:
+        return []
+    params: dict = {"maxResults": max(1, min(25, int(limit or 10)))}
+    q_parts = []
+    if query:
+        q_parts.append(query)
+    if unread_only:
+        q_parts.append("is:unread")
+    if q_parts:
+        params["q"] = " ".join(q_parts)
+    else:
+        params["labelIds"] = "INBOX"
+    try:
+        listing = _gmail_get(token, "/users/me/messages", params)
+    except requests.HTTPError as e:
+        return [{"error": f"list failed: {e}"}]
+    ids = [m.get("id") for m in (listing.get("messages") or []) if m.get("id")]
+    out: list[dict] = []
+    for mid in ids:
+        s = _message_summary(token, mid)
+        if s:
+            out.append(s)
+    return out
+
+
+def read_message(user_id: str, message_id: str) -> dict:
+    """Full body of a single message (plain text if available)."""
+    token = _access_token(user_id)
+    if not token:
+        return {"error": "not connected"}
+    try:
+        msg = _gmail_get(
+            token, f"/users/me/messages/{message_id}",
+            {"format": "full"},
+        )
+    except requests.HTTPError as e:
+        return {"error": f"fetch failed: {e}"}
+
+    def walk(part):
+        if not part:
+            return ""
+        mime = part.get("mimeType") or ""
+        body = (part.get("body") or {})
+        data = body.get("data")
+        if mime == "text/plain" and data:
+            try:
+                return base64.urlsafe_b64decode(data + "==").decode("utf-8", errors="replace")
+            except Exception:
+                return ""
+        # Recurse into multipart
+        for child in (part.get("parts") or []):
+            text = walk(child)
+            if text:
+                return text
+        # Last resort: decode HTML stripped of tags.
+        if mime == "text/html" and data:
+            try:
+                import re
+                raw = base64.urlsafe_b64decode(data + "==").decode("utf-8", errors="replace")
+                return re.sub(r"<[^>]+>", "", raw)
+            except Exception:
+                return ""
+        return ""
+
+    body_text = walk(msg.get("payload") or {}).strip()
+    if len(body_text) > 6000:
+        body_text = body_text[:6000] + "…"
+
+    return {
+        "id": msg.get("id"),
+        "thread_id": msg.get("threadId"),
+        "subject": _header(msg, "Subject"),
+        "from": _header(msg, "From"),
+        "to": _header(msg, "To"),
+        "date": _header(msg, "Date"),
+        "snippet": msg.get("snippet"),
+        "body": body_text,
+    }
+
+
+def send_email(user_id: str, to: str, subject: str, body: str,
+               cc: str | None = None, bcc: str | None = None) -> dict:
+    """Send an email from the user's Gmail. Returns {ok, id?, error?}."""
+    token = _access_token(user_id)
+    if not token:
+        return {"ok": False, "error": "not connected"}
+    to = (to or "").strip()
+    if not to or "@" not in to:
+        return {"ok": False, "error": "invalid recipient"}
+    if not (body or "").strip():
+        return {"ok": False, "error": "empty body"}
+
+    msg = EmailMessage()
+    msg["To"] = to
+    if cc:  msg["Cc"]  = cc
+    if bcc: msg["Bcc"] = bcc
+    msg["Subject"] = subject or "(no subject)"
+    # From header is filled in server-side by Gmail; we still want a sane fallback.
+    record = get_integration(user_id, "gmail") or {}
+    if record.get("email"):
+        msg["From"] = record["email"]
+    msg.set_content(body)
+
+    raw = base64.urlsafe_b64encode(msg.as_bytes()).decode("ascii").rstrip("=")
+    try:
+        r = requests.post(
+            f"{API_ROOT}/users/me/messages/send",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            },
+            json={"raw": raw},
+            timeout=20,
+        )
+        r.raise_for_status()
+        data = r.json()
+        return {"ok": True, "id": data.get("id"), "thread_id": data.get("threadId")}
+    except requests.HTTPError as e:
+        detail = ""
+        try:
+            detail = e.response.json().get("error", {}).get("message", "")
+        except Exception:
+            pass
+        return {"ok": False, "error": f"send failed ({e.response.status_code if e.response else '?'}) {detail}".strip()}
+    except requests.RequestException as e:
+        return {"ok": False, "error": f"network error: {e}"}
 
 
 def sync(user_id: str, count: int = 20) -> int:

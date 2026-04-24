@@ -4,10 +4,8 @@ from services.database_service import (
     get_semantic_graph
 )
 from services.embedding_service import embed
-from services.rag import rag_retrieve
+from routes.rag import rag_retrieve
 from config import Config
-import numpy as np
-import json
 
 behavior_roots_bp = Blueprint("behavior_roots", __name__)
 

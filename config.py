@@ -38,6 +38,7 @@ class Config:
     GMAIL_CLIENT_SECRET = os.environ.get("GMAIL_CLIENT_SECRET", "")
     GMAIL_SCOPES = (
         "https://www.googleapis.com/auth/gmail.readonly "
+        "https://www.googleapis.com/auth/gmail.send "
         "https://www.googleapis.com/auth/userinfo.email"
     )
 

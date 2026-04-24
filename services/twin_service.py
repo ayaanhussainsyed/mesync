@@ -6,6 +6,67 @@ from services.embedding_service import embed
 client = OpenAI(api_key=Config.OPENAI_API_KEY)
 
 
+# --- Tool definitions (Gmail) -----------------------------------------------
+GMAIL_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "gmail_recent_messages",
+            "description": "Fetch recent inbox messages from the user's Gmail. Use this when the user asks 'what's in my inbox', 'did I get any emails', 'any unread emails', or wants a summary of recent mail.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "limit": {"type": "integer", "minimum": 1, "maximum": 25, "default": 10},
+                    "unread_only": {"type": "boolean", "default": False},
+                    "query": {
+                        "type": "string",
+                        "description": "Optional Gmail search query (same syntax as the Gmail search bar). Examples: 'from:boss@acme.com', 'subject:invoice newer_than:7d', 'has:attachment is:unread'.",
+                    },
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "gmail_read_message",
+            "description": "Fetch the full plain-text body of a specific email by ID (from gmail_recent_messages). Use this when the user asks what a specific email says.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "message_id": {"type": "string", "description": "The message ID returned by gmail_recent_messages."},
+                },
+                "required": ["message_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "gmail_send_email",
+            "description": (
+                "Send an email from the user's Gmail account. Always CONFIRM the recipient, "
+                "subject, and body with the user before calling this — the email is sent "
+                "immediately and cannot be unsent. If the user has given you all three in "
+                "a single clear instruction (e.g. 'email alice@foo.com about the meeting, "
+                "say I'm running 10 min late'), you may send directly."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "to":      {"type": "string", "description": "Recipient email address."},
+                    "subject": {"type": "string", "description": "Subject line."},
+                    "body":    {"type": "string", "description": "Plain-text email body, in the user's voice."},
+                    "cc":      {"type": "string", "description": "Optional comma-separated CC addresses."},
+                    "bcc":     {"type": "string", "description": "Optional comma-separated BCC addresses."},
+                },
+                "required": ["to", "subject", "body"],
+            },
+        },
+    },
+]
+
+
 # --- Tool definitions (WhatsApp) --------------------------------------------
 WHATSAPP_TOOLS = [
     {
@@ -200,6 +261,26 @@ def _execute_tool(user_id: str, name: str, args: dict):
                 return wa.list_recent_chats(args.get("limit", 15))
             if name == "whatsapp_recent_messages":
                 return wa.recent_messages(args.get("limit", 10), args.get("only"))
+        if name.startswith("gmail_"):
+            from services.integrations import gmail as gm
+            if name == "gmail_recent_messages":
+                return gm.list_recent(
+                    user_id,
+                    limit=args.get("limit", 10),
+                    unread_only=bool(args.get("unread_only")),
+                    query=args.get("query"),
+                )
+            if name == "gmail_read_message":
+                return gm.read_message(user_id, args.get("message_id", ""))
+            if name == "gmail_send_email":
+                return gm.send_email(
+                    user_id,
+                    to=args.get("to", ""),
+                    subject=args.get("subject", ""),
+                    body=args.get("body", ""),
+                    cc=args.get("cc"),
+                    bcc=args.get("bcc"),
+                )
         return {"error": f"unknown tool: {name}"}
     except Exception as e:
         return {"error": str(e)}
@@ -240,12 +321,19 @@ def chat_with_twin(
         tools.extend(WHATSAPP_TOOLS)
         tool_note += (
             "\n\nYou can send WhatsApp messages on the user's behalf via the whatsapp_send tool. "
-            "ALWAYS follow this protocol before sending: (1) confirm the recipient — echo back "
-            "the number or contact in plain text, (2) show the user the exact wording you'd send, "
-            "in their voice, (3) wait for them to say go/send/confirm in the next message before "
-            "calling whatsapp_send. Never send unprompted. Never invent recipients. "
-            "If the user already gave you both a clear recipient and a ready-to-send line in the "
-            "same message (e.g. 'text 919876543210 saying hey bro'), you may send immediately."
+            "Confirm recipient and wording before sending unless the user gave both in one turn."
+        )
+
+    if get_integration(user_id, "gmail"):
+        tools.extend(GMAIL_TOOLS)
+        tool_note += (
+            "\n\nYou have live access to the user's Gmail. For 'what's in my inbox' / "
+            "'any new email' / 'summarise my emails' etc., call gmail_recent_messages "
+            "(add unread_only=true or a query when relevant). For 'what does that one say', "
+            "follow up with gmail_read_message using the id from the previous result. "
+            "For sending: CONFIRM the recipient, subject, and body with the user in plain "
+            "text first — write the email in their voice, show it, wait for go-ahead — "
+            "unless they gave all three in one clear instruction. Never invent addresses."
         )
 
     if tool_note:
