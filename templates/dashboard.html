@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dashboard · MeSync</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0a0a0a; --fg: #e8e4db; --fg-soft: #c9c4b8; --muted: #6b665d;
+    --accent: #c9a96a; --card: #141414; --border: #1c1c1c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--bg); color: var(--fg); font-family: 'Lora', serif;
+    font-weight: 400; min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  /* ---- Decorative background layers ---- */
+  body::before {
+    content: '';
+    position: fixed; inset: -10%;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse 600px 500px at 12% 18%, rgba(201,169,106,0.14) 0%, transparent 65%),
+      radial-gradient(ellipse 700px 600px at 88% 82%, rgba(201,169,106,0.10) 0%, transparent 65%),
+      radial-gradient(ellipse 500px 400px at 50% 110%, rgba(201,169,106,0.08) 0%, transparent 60%);
+    animation: decor-drift 22s ease-in-out infinite alternate;
+  }
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+      radial-gradient(rgba(201,169,106,0.09) 1px, transparent 1px),
+      linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.4) 100%);
+    background-size: 28px 28px, 100% 100%;
+    -webkit-mask-image: radial-gradient(ellipse at center, black 20%, rgba(0,0,0,0.3) 70%, transparent 100%);
+    mask-image: radial-gradient(ellipse at center, black 20%, rgba(0,0,0,0.3) 70%, transparent 100%);
+    opacity: 0.85;
+  }
+  @keyframes decor-drift {
+    from { transform: translate(0, 0) scale(1); }
+    to   { transform: translate(-30px, -20px) scale(1.04); }
+  }
+
+  /* Floating blurred orbs for depth */
+  .bg-orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.55;
+  }
+  .bg-orb.o1 {
+    top: -120px; left: -100px; width: 420px; height: 420px;
+    background: radial-gradient(circle, rgba(201,169,106,0.35) 0%, transparent 70%);
+    animation: orb-float-1 18s ease-in-out infinite alternate;
+  }
+  .bg-orb.o2 {
+    bottom: -140px; right: -120px; width: 520px; height: 520px;
+    background: radial-gradient(circle, rgba(201,169,106,0.22) 0%, transparent 70%);
+    animation: orb-float-2 24s ease-in-out infinite alternate;
+  }
+  .bg-orb.o3 {
+    top: 40%; right: 20%; width: 260px; height: 260px;
+    background: radial-gradient(circle, rgba(201,169,106,0.18) 0%, transparent 70%);
+    animation: orb-float-3 30s ease-in-out infinite alternate;
+  }
+  @keyframes orb-float-1 {
+    from { transform: translate(0, 0); }
+    to   { transform: translate(80px, 60px); }
+  }
+  @keyframes orb-float-2 {
+    from { transform: translate(0, 0); }
+    to   { transform: translate(-70px, -40px); }
+  }
+  @keyframes orb-float-3 {
+    from { transform: translate(0, 0); }
+    to   { transform: translate(-40px, 50px); }
+  }
+
+  /* All real content sits above decor */
+  header, main { position: relative; z-index: 10; }
+
+  header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 40px; height: 64px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(10, 10, 10, 0.72);
+    backdrop-filter: blur(14px) saturate(120%);
+    -webkit-backdrop-filter: blur(14px) saturate(120%);
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    text-decoration: none;
+  }
+  .brand-icon {
+    width: 28px; height: 28px; color: var(--accent);
+  }
+  .brand-name {
+    font-size: 12px; letter-spacing: 3px; color: var(--muted); text-transform: uppercase;
+  }
+  nav { display: flex; align-items: center; gap: 6px; }
+  nav a {
+    display: flex; align-items: center; gap: 6px;
+    color: var(--muted); text-decoration: none; font-size: 13px;
+    padding: 8px 14px; border-radius: 4px; transition: color 0.2s;
+  }
+  nav a svg { width: 15px; height: 15px; }
+  nav a:hover { color: var(--fg-soft); }
+  nav a[aria-current="page"] { color: var(--accent); }
+  nav a.btn-logout {
+    color: var(--muted); margin-left: 8px;
+    padding: 8px 14px; border-radius: 4px; transition: color 0.2s;
+  }
+  nav a.btn-logout:hover { color: #c96a6a; }
+
+  main {
+    padding: 120px 40px 60px;
+    max-width: 640px;
+    margin: 0 auto;
+  }
+
+  .hero { text-align: center; margin-bottom: 56px; position: relative; }
+  .hero-kicker {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--accent); font-style: italic; margin-bottom: 18px;
+    padding: 6px 14px; border: 1px solid rgba(201,169,106,0.25);
+    border-radius: 999px; background: rgba(201,169,106,0.04);
+  }
+  .hero-kicker::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent); box-shadow: 0 0 10px var(--accent);
+    animation: pulse-dot 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.85); }
+  }
+  .hero-title { font-size: 40px; font-style: italic; color: var(--accent); margin-bottom: 12px; font-weight: 400; letter-spacing: -0.01em; }
+  .hero-sub { color: var(--fg-soft); font-size: 15px; line-height: 1.8; max-width: 460px; margin: 0 auto; }
+
+  .features { display: flex; flex-direction: column; gap: 12px; }
+
+  .feature-card {
+    background: rgba(20, 20, 20, 0.72);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--border); border-radius: 12px;
+    padding: 22px 24px; text-decoration: none; display: flex;
+    align-items: center; gap: 20px;
+    transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+    position: relative; overflow: hidden;
+  }
+  .feature-card::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(201,169,106,0.08) 0%, transparent 40%);
+    opacity: 0; transition: opacity 0.25s;
+    pointer-events: none;
+  }
+  .feature-card:hover {
+    border-color: var(--accent);
+    transform: translateX(4px);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(201,169,106,0.3);
+  }
+  .feature-card:hover::before { opacity: 1; }
+  .feature-card:active { transform: translateX(2px); }
+
+  .feature-icon {
+    width: 44px; height: 44px; border-radius: 8px;
+    background: var(--bg); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .feature-icon svg { width: 22px; height: 22px; stroke: var(--accent); fill: none; stroke-width: 1.5; }
+
+  .feature-text { flex: 1; position: relative; z-index: 1; }
+  .feature-title { font-size: 17px; color: var(--fg-soft); margin-bottom: 4px; font-weight: 400; }
+  .feature-desc { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+  .feature-arrow { color: var(--border); transition: color 0.2s, transform 0.2s; font-size: 18px; }
+  .feature-card:hover .feature-arrow { color: var(--accent); transform: translateX(4px); }
+
+  .logout-wrap { text-align: center; margin-top: 48px; }
+  .logout-link { color: var(--muted); text-decoration: none; font-size: 13px; transition: color 0.2s; }
+  .logout-link:hover { color: var(--accent); }
+
+  .account-section { margin-top: 48px; padding-top: 32px; border-top: 1px solid var(--border); }
+  .section-label { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); margin-bottom: 16px; font-style: italic; }
+
+  .dev-card {
+    background: rgba(20, 20, 20, 0.72);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px 24px; margin-bottom: 16px;
+  }
+  .dev-title { font-size: 15px; color: var(--fg-soft); margin-bottom: 12px; font-weight: 400; }
+  .dev-row { display: flex; flex-direction: column; gap: 10px; }
+  .dev-row-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+  .dev-row-item span:first-child { font-style: italic; color: var(--fg-soft); min-width: 100px; }
+
+  .dev-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+  .dev-btn {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--muted); padding: 8px 16px; border-radius: 4px;
+    font-family: inherit; font-size: 13px; cursor: pointer; transition: all 0.2s;
+    text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .dev-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .dev-btn.danger:hover { border-color: #c96a6a; color: #c96a6a; }
+  .dev-btn svg { width: 13px; height: 13px; }
+
+  .dev-status { font-size: 12px; color: var(--muted); margin-top: 10px; font-style: italic; min-height: 18px; }
+
+  .voice-id-row { display: flex; gap: 10px; align-items: center; margin-top: 12px; }
+  .voice-id-input { flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--fg); padding: 8px 12px; border-radius: 4px; font-family: inherit; font-size: 13px; outline: none; transition: border-color 0.2s; }
+  .voice-id-input:focus { border-color: var(--accent); }
+  .voice-id-input::placeholder { color: var(--muted); font-style: italic; }
+
+  @media (max-width: 768px) {
+    nav { padding: 16px 20px; }
+    .nav-links { gap: 16px; }
+    main { padding: 100px 20px 40px; }
+    .hero-title { font-size: 28px; }
+    .feature-card { padding: 18px 20px; }
+    .bg-orb.o1 { width: 280px; height: 280px; }
+    .bg-orb.o2 { width: 320px; height: 320px; }
+    .bg-orb.o3 { display: none; }
+    nav a span { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    .bg-orb, body::before { animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="bg-orb o1" aria-hidden="true"></div>
+<div class="bg-orb o2" aria-hidden="true"></div>
+<div class="bg-orb o3" aria-hidden="true"></div>
+<header>
+  <a href="/dashboard" class="brand">
+    <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <circle cx="12" cy="12" r="4"/>
+      <path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
+    </svg>
+    <span class="brand-name">MeSync</span>
+  </a>
+  <nav role="navigation" aria-label="Main navigation">
+    <a href="/chat" aria-label="Chat">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+      </svg>
+      <span>Chat</span>
+    </a>
+    <a href="/journal" aria-label="Journal">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+      </svg>
+      <span>Journal</span>
+    </a>
+    <a href="/letters" aria-label="Letters">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="3" y="5" width="18" height="14" rx="2"/>
+        <polyline points="3 7 12 13 21 7"/>
+      </svg>
+      <span>Letters</span>
+    </a>
+    <a href="/integrations" aria-label="Apps">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
+        <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
+      </svg>
+      <span>Apps</span>
+    </a>
+    <a href="/graph" aria-label="Graph">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/>
+        <circle cx="12" cy="18" r="3"/>
+        <line x1="8.5" y1="7.5" x2="10.5" y2="15.5"/>
+        <line x1="15.5" y1="7.5" x2="13.5" y2="15.5"/>
+      </svg>
+      <span>Graph</span>
+    </a>
+    <a href="/drift" aria-label="Drift">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <polyline points="3 18 8 12 13 16 21 6"/>
+      </svg>
+      <span>Drift</span>
+    </a>
+    <a href="/decisions" aria-label="Decisions">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M12 6v6l4 2"/>
+      </svg>
+      <span>Decisions</span>
+    </a>
+    <a href="/logout" class="btn-logout" aria-label="Logout">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+        <polyline points="16 17 21 12 16 7"/>
+        <line x1="21" y1="12" x2="9" y2="12"/>
+      </svg>
+    </a>
+  </nav>
+</header>
+
+<main>
+  <div class="hero">
+    <h1 class="hero-title">Welcome, {{ username }}.</h1>
+    <p class="hero-sub">Your digital twin is ready. Explore your personality, simulate decisions, and talk to the version of you that knows your patterns.</p>
+  </div>
+
+  <div class="features">
+    <a href="/chat" class="feature-card">
+      <div class="feature-icon">
+        <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      </div>
+      <div class="feature-text">
+        <div class="feature-title">Chat with Twin</div>
+        <div class="feature-desc">Talk to your digital twin. Chat, Voice, or Advocate mode.</div>
+      </div>
+      <div class="feature-arrow">→</div>
+    </a>
+
+    <a href="/journal" class="feature-card">
+      <div class="feature-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      </div>
+      <div class="feature-text">
+        <div class="feature-title">Daily Journal</div>
+        <div class="feature-desc">Write entries or record voice notes. Twin reads everything.</div>
+      </div>
+      <div class="feature-arrow">→</div>
+    </a>
+
+    <a href="/letters" class="feature-card">
+      <div class="feature-icon">
+        <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><polyline points="3 7 12 13 21 7"/></svg>
+      </div>
+      <div class="feature-text">
+        <div class="feature-title">Letters from Later</div>
+        <div class="feature-desc">Your future self writes unprompted letters back to you.</div>
+      </div>
+      <div class="feature-arrow">→</div>
+    </a>
+
+    <a href="/integrations" class="feature-card">
+      <div class="feature-icon">
+        <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+      </div>
+      <div class="feature-text">
+        <div class="feature-title">Connected Apps</div>
+        <div class="feature-desc">Feed your twin more about you — Spotify, GitHub, WhatsApp.</div>
+      </div>
+      <div class="feature-arrow">→</div>
+    </a>
+
+    <a href="/graph" class="feature-card">
+      <div class="feature-icon">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="3"/><circle cx="5" cy="19" r="3"/><circle cx="19" cy="19" r="3"/><line x1="12" y1="8" x2="5" y2="16"/><line x1="12" y1="8" x2="19" y2="16"/></svg>
+      </div>
+      <div class="feature-text">
+        <div class="feature-title">Memory Graph</div>
+        <div class="feature-desc">What your twin remembers — people, places, and threads, as a graph.</div>
+      </div>
+      <div class="feature-arrow">→</div>
+    </a>
+
+    <a href="/drift" class="feature-card">
+      <div class="feature-icon">
+        <svg viewBox="0 0 24 24"><polyline points="3 18 8 12 13 16 21 6"/></svg>
+      </div>
+      <div class="feature-text">
+        <div class="feature-title">Drift Meter</div>
+        <div class="feature-desc">How you've shifted over time — mood, cadence, and traits.</div>
+      </div>
+      <div class="feature-arrow">→</div>
+    </a>
+
+    <a href="/decisions" class="feature-card">
+      <div class="feature-icon">
+        <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      </div>
+      <div class="feature-text">
+        <div class="feature-title">Decision Simulator</div>
+        <div class="feature-desc">Describe a decision. See how 3 paths might unfold over time.</div>
+      </div>
+      <div class="feature-arrow">→</div>
+    </a>
+  </div>
+
+  <div class="logout-wrap">
+    <a href="/logout" class="logout-link">Sign out</a>
+  </div>
+
+  <div class="account-section">
+    <div class="section-label">Account</div>
+    <div class="dev-card">
+      <div class="dev-title">Account Info</div>
+      <div class="dev-row">
+        <div class="dev-row-item"><span>Username</span><span id="devUsername">{{ username }}</span></div>
+        <div class="dev-row-item"><span>Onboarding</span><span id="devOnboarding">{{ 'Complete' if user and user.get('onboarding_complete') else 'Incomplete' }}</span></div>
+        <div class="dev-row-item"><span>Voice Clone</span><span id="devVoice">{{ 'Ready' if user and user.get('voice_id') else 'Not set' }}</span></div>
+        <div class="voice-id-row">
+          <input type="text" id="voiceIdInput" class="voice-id-input" placeholder="Paste 11Labs voice ID here…" value="{{ user.get('voice_id', '') if user and user.get('voice_id') else '' }}" aria-label="11Labs Voice ID">
+          <button class="dev-btn" id="saveVoiceIdBtn">Save</button>
+        </div>
+        <div class="dev-row-item"><span>Big Five</span><span>{{ 'Computed' if user and user.get('big_five') else 'Pending' }}</span></div>
+      </div>
+      <div class="dev-actions">
+        <button class="dev-btn" id="reOnboardBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+          Re-run Onboarding
+        </button>
+        <button class="dev-btn danger" id="deleteVoiceBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/></svg>
+          Delete Voice Clone
+        </button>
+        <button class="dev-btn" id="testVoiceBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/><path d="M19.07 4.93a10 10 0 010 14.14"/></svg>
+          Test Voice
+        </button>
+        <button class="dev-btn" id="debugVoiceBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Debug Voice
+        </button>
+      </div>
+      <div class="dev-status" id="devStatus"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+function setStatus(msg, isError = false) {
+  const el = document.getElementById('devStatus');
+  el.textContent = msg;
+  el.style.color = isError ? '#c96a6a' : 'var(--muted)';
+}
+
+document.getElementById('reOnboardBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('reOnboardBtn');
+  btn.disabled = true;
+  setStatus('Resetting...');
+  try {
+    const res = await fetch('/dev/reset-onboarding-api', { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      setStatus('Onboarding reset. Redirecting...');
+      setTimeout(() => { window.location.href = '/onboarding'; }, 400);
+    } else {
+      setStatus(data.error || 'Failed.', true);
+      btn.disabled = false;
+    }
+  } catch(e) {
+    setStatus('Request failed.', true);
+    btn.disabled = false;
+  }
+});
+
+document.getElementById('deleteVoiceBtn').addEventListener('click', async () => {
+  if (!confirm('Delete your voice clone? This cannot be undone.')) return;
+  const btn = document.getElementById('deleteVoiceBtn');
+  btn.disabled = true;
+  setStatus('Deleting...');
+  try {
+    const res = await fetch('/account/delete-voice', { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById('devVoice').textContent = 'Not set';
+      setStatus('Voice deleted.');
+      document.getElementById('devVoiceStatus')?.remove();
+    } else {
+      setStatus(data.error || 'Failed.', true);
+    }
+  } catch(e) {
+    setStatus('Request failed.', true);
+  }
+  btn.disabled = false;
+});
+
+document.getElementById('testVoiceBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('testVoiceBtn');
+  btn.disabled = true;
+  setStatus('Generating test voice...');
+  try {
+    const res = await fetch('/account/test-voice', { method: 'POST' });
+    const data = await res.json();
+    if (data.audio) {
+      const audio = new Audio(data.audio);
+      audio.play();
+      setStatus('Playing test voice...');
+      audio.onended = () => setStatus('');
+    } else {
+      setStatus(data.error || 'Failed to generate audio.', true);
+    }
+  } catch(e) {
+    setStatus('Request failed.', true);
+  }
+  btn.disabled = false;
+});
+
+document.getElementById('debugVoiceBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('debugVoiceBtn');
+  btn.disabled = true;
+  setStatus('Fetching debug info...');
+  try {
+    const res = await fetch('/account/debug-voice');
+    const data = await res.json();
+    setStatus(`DB voice_id: ${data.db_voice_id || 'none'} | Matching voices: ${data.matching_voices.length}`);
+    console.log('[Voice Debug]', data);
+    alert(`DB voice_id: ${data.db_voice_id || 'NONE'}\n11Labs voices: ${JSON.stringify(data.all_voices.map(v => v.name + '=' + v.voice_id))}\nMatching: ${data.matching_voices.map(v => v.voice_id).join(', ')}`);
+  } catch(e) {
+    setStatus('Debug fetch failed.', true);
+  }
+  btn.disabled = false;
+});
+
+document.getElementById('saveVoiceIdBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('saveVoiceIdBtn');
+  const input = document.getElementById('voiceIdInput');
+  const voiceId = input.value.trim();
+  if (!voiceId) return;
+  btn.disabled = true;
+  setStatus('Saving voice ID...');
+  try {
+    const res = await fetch('/account/save-voice-id', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ voice_id: voiceId }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById('devVoice').textContent = 'Ready';
+      setStatus('Voice ID saved!');
+    } else {
+      setStatus(data.error || 'Failed.', true);
+    }
+  } catch(e) {
+    setStatus('Save failed.', true);
+  }
+  btn.disabled = false;
+});
+</script>
+</body>
+</html>

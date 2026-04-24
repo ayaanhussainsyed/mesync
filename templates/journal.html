@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Journal · MeSync</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0a0a0a; --fg: #e8e4db; --fg-soft: #c9c4b8; --muted: #6b665d;
+    --accent: #c9a96a; --accent-soft: #a88a4f; --card: #141414; --border: #1c1c1c;
+    --danger: #c96a6a;
+
+    --frame-hi:  rgba(201, 169, 106, 0.55);
+    --frame-mid: rgba(139, 107, 53, 0.95);
+    --frame-lo:  rgba(58, 44, 20, 1);
+    --gutter:    rgba(0, 0, 0, 0.75);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--bg); color: var(--fg); font-family: 'Lora', serif;
+    font-weight: 400; min-height: 100vh; overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 40px; height: 64px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .brand-icon { width: 28px; height: 28px; color: var(--accent); }
+  .brand-name { font-size: 12px; letter-spacing: 3px; color: var(--muted); text-transform: uppercase; }
+  nav { display: flex; align-items: center; gap: 6px; }
+  nav a {
+    display: flex; align-items: center; gap: 6px;
+    color: var(--muted); text-decoration: none; font-size: 13px;
+    padding: 8px 14px; border-radius: 4px; transition: color 0.2s;
+  }
+  nav a svg { width: 15px; height: 15px; }
+  nav a:hover { color: var(--fg-soft); }
+  nav a[aria-current="page"] { color: var(--accent); }
+  nav a.btn-logout { color: var(--muted); margin-left: 8px; }
+  nav a.btn-logout:hover { color: var(--danger); }
+
+  main {
+    padding: 92px 24px 60px;
+    max-width: 1120px;
+    margin: 0 auto;
+  }
+
+  .page-head { margin-bottom: 28px; text-align: center; }
+  .page-date {
+    font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 10px; font-style: italic;
+  }
+  .page-title {
+    font-size: 32px; font-style: italic; color: var(--accent);
+    font-weight: 400; letter-spacing: -0.01em; line-height: 1.2;
+  }
+  .page-sub {
+    color: var(--muted); font-size: 14px; line-height: 1.7;
+    margin-top: 8px; font-style: italic;
+  }
+
+  /* ================= THE BOOK ================= */
+  .book {
+    position: relative;
+    margin: 0 auto;
+    max-width: 1040px;
+    display: flex;
+    min-height: 640px;
+    background: var(--bg);
+    border-radius: 6px;
+
+    box-shadow:
+      inset 0 1px 0 var(--frame-hi),
+      inset 0 -1px 0 rgba(0,0,0,0.65),
+      inset 1px 0 0 rgba(201,169,106,0.18),
+      inset -1px 0 0 rgba(201,169,106,0.18),
+      0 0 0 1px var(--frame-mid),
+      0 0 0 2px var(--frame-lo),
+      0 3px 0 rgba(201,169,106,0.35),
+      0 5px 0 rgba(139,107,53,0.75),
+      0 8px 0 rgba(58,44,20,0.95),
+      0 11px 0 rgba(26,18,8,0.95),
+      0 14px 0 rgba(10,7,3,1),
+      0 30px 60px rgba(0,0,0,0.75),
+      0 12px 24px rgba(0,0,0,0.55);
+  }
+
+  /* center spine */
+  .book::before {
+    content: '';
+    position: absolute;
+    top: 0; bottom: 0; left: 50%;
+    width: 40px;
+    transform: translateX(-50%);
+    background:
+      linear-gradient(to right,
+        transparent 0%,
+        rgba(0,0,0,0.55) 30%,
+        rgba(0,0,0,0.9) 50%,
+        rgba(0,0,0,0.55) 70%,
+        transparent 100%);
+    pointer-events: none;
+    z-index: 4;
+  }
+  .book::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%; width: 2px; height: 100%;
+    transform: translateX(-50%);
+    background: linear-gradient(to bottom,
+      transparent, rgba(201,169,106,0.35) 40%, rgba(201,169,106,0.15) 60%, transparent);
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  .page {
+    flex: 1;
+    min-width: 0;
+    position: relative;
+    padding: 48px 44px;
+    background: var(--bg);
+    display: flex; flex-direction: column;
+  }
+  .page-left  { box-shadow: inset -28px 0 48px -28px var(--gutter); border-radius: 6px 0 0 6px; }
+  .page-right { box-shadow: inset 28px 0 48px -28px var(--gutter);  border-radius: 0 6px 6px 0; }
+
+  .page-caption {
+    font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--muted); font-style: italic; margin-bottom: 8px;
+    display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  }
+  .page-heading {
+    font-family: 'Lora', serif;
+    font-size: 22px; font-style: italic; color: var(--accent);
+    font-weight: 400; margin-bottom: 20px; letter-spacing: -0.01em;
+  }
+  .entry-count {
+    color: var(--accent-soft); font-style: italic; letter-spacing: 1px;
+  }
+
+  /* ---- LEFT : compose ---- */
+  .journal-body {
+    width: 100%;
+    min-height: 260px;
+    flex: 1;
+    background: transparent;
+    border: none; outline: none;
+    color: var(--fg); font-family: 'Lora', serif;
+    font-size: 16px; line-height: 1.85;
+    resize: vertical;
+    caret-color: var(--accent);
+  }
+  .journal-body::placeholder { color: var(--muted); font-style: italic; }
+
+  .mood-row {
+    display: flex; gap: 8px; align-items: center;
+    flex-wrap: wrap; margin-top: 20px;
+    padding-top: 18px;
+    border-top: 1px dashed rgba(201, 169, 106, 0.18);
+  }
+  .mood-label {
+    font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--muted); margin-right: 6px; font-style: italic;
+  }
+  .mood-btn {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--muted); padding: 5px 14px; border-radius: 20px;
+    cursor: pointer; font-family: inherit; font-size: 12px;
+    transition: all 0.2s;
+  }
+  .mood-btn:hover { border-color: var(--accent); color: var(--fg-soft); }
+  .mood-btn.selected {
+    border-color: var(--accent); color: var(--accent); background: #18160f;
+  }
+  .mood-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .journal-actions {
+    display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap;
+  }
+  .btn {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--muted); padding: 9px 18px; border-radius: 4px;
+    font-family: inherit; font-size: 13px; cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex; align-items: center; gap: 8px;
+    text-decoration: none; letter-spacing: 0.5px;
+  }
+  .btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn.primary {
+    border-color: var(--accent); color: var(--accent); background: #18160f;
+  }
+  .btn.primary:hover { background: var(--accent); color: #0a0a0a; }
+
+  .btn.voice.recording {
+    border-color: var(--danger); color: var(--danger); background: #1a0f0f;
+    animation: pulseBtn 1.3s ease-in-out infinite;
+  }
+  @keyframes pulseBtn {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+  }
+
+  .status-msg {
+    font-size: 12px; color: var(--muted); font-style: italic;
+    margin-top: 14px; min-height: 16px;
+  }
+  .status-msg.error { color: var(--danger); }
+
+  /* ---- RIGHT : entries list ---- */
+  .entries-wrap {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 6px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(201,169,106,0.25) transparent;
+  }
+  .entries-wrap::-webkit-scrollbar { width: 6px; }
+  .entries-wrap::-webkit-scrollbar-thumb { background: rgba(201,169,106,0.22); border-radius: 3px; }
+  .entries-wrap::-webkit-scrollbar-thumb:hover { background: rgba(201,169,106,0.4); }
+
+  .entries-list {
+    display: flex; flex-direction: column;
+  }
+
+  .entry-item {
+    position: relative;
+    border-top: 1px solid rgba(201,169,106,0.08);
+    transition: background 0.2s;
+  }
+  .entry-item:first-child { border-top: none; }
+
+  .entry-header {
+    width: 100%;
+    background: transparent;
+    border: none;
+    padding: 14px 44px 14px 20px;
+    color: inherit;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    display: block;
+    position: relative;
+    transition: background 0.2s;
+  }
+  .entry-delete {
+    position: absolute;
+    top: 10px; right: 8px;
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    background: transparent; border: 1px solid transparent;
+    color: var(--muted); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: all 0.15s;
+    z-index: 2;
+  }
+  .entry-delete svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+  .entry-item:hover .entry-delete,
+  .entry-item.open .entry-delete,
+  .entry-delete:focus-visible { opacity: 1; }
+  .entry-delete:hover { color: var(--danger); border-color: var(--danger); background: rgba(201,106,106,0.08); }
+  .entry-delete:focus-visible { outline: 2px solid var(--danger); outline-offset: 2px; }
+  .entry-delete.confirming { color: var(--danger); border-color: var(--danger); opacity: 1; padding: 0 8px; width: auto; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; font-family: inherit; }
+  .entry-delete.confirming svg { display: none; }
+  .entry-header::before {
+    content: '';
+    position: absolute;
+    top: 14px; bottom: 14px; left: 6px;
+    width: 2px;
+    background: transparent;
+    transition: background 0.2s;
+    border-radius: 1px;
+  }
+  .entry-header:hover { background: rgba(201,169,106,0.04); }
+  .entry-header:hover::before { background: rgba(201,169,106,0.3); }
+  .entry-header:focus-visible { outline: none; background: rgba(201,169,106,0.06); }
+  .entry-header:focus-visible::before { background: var(--accent); }
+
+  .entry-item.open .entry-header { background: rgba(201,169,106,0.05); }
+  .entry-item.open .entry-header::before { background: var(--accent); }
+
+  .entry-meta {
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 12px; margin-bottom: 4px;
+  }
+  .entry-date {
+    font-size: 12px; color: var(--fg-soft); font-style: italic;
+    letter-spacing: 0.3px;
+  }
+  .entry-mood {
+    font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--accent); font-style: italic;
+    flex-shrink: 0;
+  }
+  .entry-preview {
+    color: var(--muted);
+    font-size: 13px; line-height: 1.6;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-style: italic;
+  }
+  .entry-item.open .entry-preview { display: none; }
+
+  .entry-full {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease;
+  }
+  .entry-item.open .entry-full {
+    max-height: 2000px;
+  }
+  .entry-text {
+    padding: 4px 18px 22px 20px;
+    color: var(--fg-soft);
+    font-size: 14px; line-height: 1.85;
+    white-space: pre-wrap;
+  }
+
+  .loading-state, .empty-state {
+    text-align: center; padding: 40px 20px;
+    color: var(--muted); font-style: italic; font-size: 14px;
+    border: 1px dashed var(--border); border-radius: 8px;
+    margin-top: 8px;
+  }
+
+  /* ---- Responsive ---- */
+  @media (max-width: 860px) {
+    main { padding: 88px 16px 40px; }
+    .book { flex-direction: column; min-height: auto; }
+    .book::before, .book::after { display: none; }
+    .page { padding: 32px 24px; }
+    .page-left { box-shadow: inset 0 -28px 40px -28px var(--gutter); border-radius: 6px 6px 0 0; }
+    .page-right { box-shadow: inset 0 28px 40px -28px var(--gutter); border-radius: 0 0 6px 6px; }
+    .entries-wrap { max-height: 520px; }
+    .page-title { font-size: 26px; }
+    nav a span { display: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+</style>
+</head>
+<body>
+<header>
+  <a href="/dashboard" class="brand">
+    <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <circle cx="12" cy="12" r="4"/>
+      <path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
+    </svg>
+    <span class="brand-name">MeSync</span>
+  </a>
+  <nav role="navigation" aria-label="Main navigation">
+    <a href="/chat" aria-label="Chat">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+      </svg>
+      <span>Chat</span>
+    </a>
+    <a href="/journal" aria-current="page" aria-label="Journal">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+      </svg>
+      <span>Journal</span>
+    </a>
+    <a href="/letters" aria-label="Letters">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="3" y="5" width="18" height="14" rx="2"/>
+        <polyline points="3 7 12 13 21 7"/>
+      </svg>
+      <span>Letters</span>
+    </a>
+    <a href="/integrations" aria-label="Apps">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
+        <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
+      </svg>
+      <span>Apps</span>
+    </a>
+    <a href="/graph" aria-label="Graph">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/>
+        <circle cx="12" cy="18" r="3"/>
+        <line x1="8.5" y1="7.5" x2="10.5" y2="15.5"/>
+        <line x1="15.5" y1="7.5" x2="13.5" y2="15.5"/>
+      </svg>
+      <span>Graph</span>
+    </a>
+    <a href="/drift" aria-label="Drift">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <polyline points="3 18 8 12 13 16 21 6"/>
+      </svg>
+      <span>Drift</span>
+    </a>
+    <a href="/decisions" aria-label="Decisions">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M12 6v6l4 2"/>
+      </svg>
+      <span>Decisions</span>
+    </a>
+    <a href="/logout" class="btn-logout" aria-label="Logout">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+        <polyline points="16 17 21 12 16 7"/>
+        <line x1="21" y1="12" x2="9" y2="12"/>
+      </svg>
+    </a>
+  </nav>
+</header>
+
+<main>
+  <div class="page-head">
+    <p class="page-date" id="journalDate"></p>
+    <h1 class="page-title">Journal</h1>
+    <p class="page-sub">Write on the left page. Browse every past entry on the right.</p>
+  </div>
+
+  <section class="book" aria-label="Journal book">
+    <!-- LEFT : compose -->
+    <div class="page page-left">
+      <div class="page-caption"><span>Today</span></div>
+      <h2 class="page-heading">Dear Journal</h2>
+
+      <textarea
+        id="journalBody"
+        class="journal-body"
+        placeholder="Start writing — in your own words, the way you'd think them..."
+        rows="10"
+        aria-label="Journal entry"
+      ></textarea>
+
+      <div class="mood-row">
+        <span class="mood-label">Mood</span>
+        <button class="mood-btn" data-mood="great" aria-pressed="false">Great</button>
+        <button class="mood-btn" data-mood="good" aria-pressed="false">Good</button>
+        <button class="mood-btn" data-mood="neutral" aria-pressed="false">Neutral</button>
+        <button class="mood-btn" data-mood="low" aria-pressed="false">Low</button>
+        <button class="mood-btn" data-mood="rough" aria-pressed="false">Rough</button>
+      </div>
+
+      <div class="journal-actions">
+        <button class="btn primary" id="saveBtn">
+          <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          <span>Save Entry</span>
+        </button>
+        <button class="btn voice" id="voiceBtn">
+          <svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+          <span>Voice Note</span>
+        </button>
+      </div>
+      <p id="statusMsg" class="status-msg" aria-live="polite"></p>
+    </div>
+
+    <!-- RIGHT : all entries, expandable -->
+    <div class="page page-right">
+      <div class="page-caption">
+        <span>Previous Entries</span>
+        <span class="entry-count" id="entryCount"></span>
+      </div>
+      <h2 class="page-heading">Archive</h2>
+
+      <div class="entries-wrap">
+        <div class="entries-list" id="entriesList">
+          <p class="loading-state">Loading&hellip;</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  document.getElementById('journalDate').textContent =
+    new Date().toLocaleDateString('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+
+  let entries = [];
+  let selectedMood = null;
+  let mediaRecorder = null;
+  let audioChunks = [];
+
+  const entriesList = document.getElementById('entriesList');
+  const entryCount  = document.getElementById('entryCount');
+
+  const saveBtnHTML = '<svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg><span>Save Entry</span>';
+  const voiceBtnHTML = '<svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg><span>Voice Note</span>';
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text ?? '';
+    return div.innerHTML;
+  }
+
+  function renderEntries(openIdx = null) {
+    if (!entries.length) {
+      entryCount.textContent = '';
+      entriesList.innerHTML = '<p class="empty-state">No entries yet. Write your first on the left.</p>';
+      return;
+    }
+    entryCount.textContent = entries.length + (entries.length === 1 ? ' entry' : ' entries');
+
+    entriesList.innerHTML = entries.map((e, idx) => {
+      const date = new Date(e.created_at).toLocaleDateString('en-US', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+      });
+      const mood = e.mood ? `<span class="entry-mood">${escapeHtml(e.mood)}</span>` : '';
+      const open = idx === openIdx ? ' open' : '';
+      return `
+        <article class="entry-item${open}" data-idx="${idx}" data-id="${e.id}">
+          <button class="entry-header" type="button" aria-expanded="${idx === openIdx}">
+            <div class="entry-meta">
+              <span class="entry-date">${date}</span>
+              ${mood}
+            </div>
+            <p class="entry-preview">${escapeHtml(e.text)}</p>
+          </button>
+          <button class="entry-delete" type="button" aria-label="Delete entry" title="Delete entry">
+            <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+          </button>
+          <div class="entry-full">
+            <div class="entry-text">${escapeHtml(e.text)}</div>
+          </div>
+        </article>
+      `;
+    }).join('');
+
+    entriesList.querySelectorAll('.entry-header').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const item = btn.closest('.entry-item');
+        const isOpen = item.classList.toggle('open');
+        btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      });
+    });
+    entriesList.querySelectorAll('.entry-delete').forEach(btn => {
+      btn.addEventListener('click', async (ev) => {
+        ev.stopPropagation();
+        const item = btn.closest('.entry-item');
+        const id = item.dataset.id;
+        if (!btn.classList.contains('confirming')) {
+          btn.classList.add('confirming');
+          btn.textContent = 'Delete?';
+          btn.setTimeout_id = setTimeout(() => {
+            btn.classList.remove('confirming');
+            btn.innerHTML = '<svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
+          }, 2500);
+          return;
+        }
+        clearTimeout(btn.setTimeout_id);
+        btn.disabled = true;
+        try {
+          const res = await fetch('/journal/entry/' + id, { method: 'DELETE' });
+          const data = await res.json();
+          if (data.ok) {
+            item.style.transition = 'opacity 0.2s, transform 0.2s';
+            item.style.opacity = '0';
+            item.style.transform = 'translateX(20px)';
+            setTimeout(() => loadHistory(), 200);
+          } else {
+            btn.classList.remove('confirming');
+            btn.disabled = false;
+            alert(data.error || 'Delete failed.');
+          }
+        } catch(e) {
+          btn.classList.remove('confirming');
+          btn.disabled = false;
+          alert('Delete failed.');
+        }
+      });
+    });
+  }
+
+  // ===== Mood =====
+  document.querySelectorAll('.mood-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.mood-btn').forEach(b => {
+        b.classList.remove('selected');
+        b.setAttribute('aria-pressed', 'false');
+      });
+      btn.classList.add('selected');
+      btn.setAttribute('aria-pressed', 'true');
+      selectedMood = btn.dataset.mood;
+    });
+  });
+
+  // ===== Status =====
+  function showStatus(msg, { error = false, duration = 4000 } = {}) {
+    const el = document.getElementById('statusMsg');
+    el.textContent = msg;
+    el.classList.toggle('error', error);
+    if (duration > 0) {
+      setTimeout(() => { el.textContent = ''; el.classList.remove('error'); }, duration);
+    }
+  }
+
+  // ===== Save =====
+  document.getElementById('saveBtn').addEventListener('click', async () => {
+    const text = document.getElementById('journalBody').value.trim();
+    if (!text) return;
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span>Saving&hellip;</span>';
+    try {
+      const res = await fetch('/journal/entry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, mood: selectedMood, source: 'journal' })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        document.getElementById('journalBody').value = '';
+        selectedMood = null;
+        document.querySelectorAll('.mood-btn').forEach(b => {
+          b.classList.remove('selected');
+          b.setAttribute('aria-pressed', 'false');
+        });
+        showStatus('Entry saved.');
+        await loadHistory(true);
+      } else {
+        showStatus(data.error || 'Failed to save.', { error: true, duration: 0 });
+      }
+    } catch(e) {
+      showStatus('Failed to save. Check connection.', { error: true, duration: 0 });
+    }
+    btn.disabled = false;
+    btn.innerHTML = saveBtnHTML;
+  });
+
+  // ===== Voice =====
+  document.getElementById('voiceBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('voiceBtn');
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      mediaRecorder.stop();
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      audioChunks = [];
+      mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+      mediaRecorder.onstop = async () => {
+        const blob = new Blob(audioChunks, { type: 'audio/webm' });
+        btn.classList.remove('recording');
+        btn.innerHTML = voiceBtnHTML;
+        stream.getTracks().forEach(t => t.stop());
+        btn.disabled = true;
+        btn.innerHTML = '<span>Processing&hellip;</span>';
+        const formData = new FormData();
+        formData.append('audio', blob, 'recording.webm');
+        try {
+          const res = await fetch('/journal/voice', { method: 'POST', body: formData });
+          const data = await res.json();
+          if (data.ok) {
+            showStatus('Voice note saved: "' + data.transcribed + '"');
+            await loadHistory(true);
+          } else {
+            showStatus(data.error || 'Transcription failed.', { error: true, duration: 0 });
+          }
+        } catch(err) {
+          showStatus('Upload failed.', { error: true, duration: 0 });
+        }
+        btn.disabled = false;
+        btn.innerHTML = voiceBtnHTML;
+        mediaRecorder = null;
+      };
+      mediaRecorder.start();
+      btn.classList.add('recording');
+      btn.innerHTML = '<span>Recording&hellip; click to stop</span>';
+    } catch(e) {
+      showStatus('Microphone access denied.', { error: true, duration: 0 });
+    }
+  });
+
+  // ===== History =====
+  async function loadHistory(openNewest = false) {
+    try {
+      const res = await fetch('/journal/history');
+      const data = await res.json();
+      entries = data.entries || [];
+      renderEntries(openNewest && entries.length ? 0 : null);
+    } catch(e) {
+      entries = [];
+      entriesList.innerHTML = '<p class="empty-state">Could not load history.</p>';
+      entryCount.textContent = '';
+    }
+  }
+
+  loadHistory();
+</script>
+</body>
+</html>

@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Onboarding · MeSync</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0a0a0a; --fg: #e8e4db; --fg-soft: #c9c4b8; --muted: #6b665d;
+    --accent: #c9a96a; --card: #141414; --border: #1c1c1c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--bg); color: var(--fg); font-family: 'Lora', serif;
+    font-weight: 400; min-height: 100vh; overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 40px; height: 64px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    text-decoration: none;
+  }
+  .brand-icon {
+    width: 28px; height: 28px; color: var(--accent);
+  }
+  .brand-name {
+    font-size: 12px; letter-spacing: 3px; color: var(--muted); text-transform: uppercase;
+  }
+
+  .progress-wrap {
+    position: fixed; top: 0; left: 0; right: 0; padding: 0 40px; z-index: 10;
+  }
+  .progress-inner {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 20px 0 0;
+  }
+  .progress-text { font-size: 11px; color: var(--muted); font-style: italic; }
+  .progress-bar {
+    height: 1px; background: #1a1a1a; margin-top: 16px;
+  }
+  .progress-fill {
+    height: 100%; background: var(--accent);
+    transition: width 500ms cubic-bezier(.2,.8,.2,1);
+  }
+
+  .stage {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    padding: 120px 40px 80px;
+  }
+  .card {
+    width: 100%; max-width: 600px;
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 220ms ease, transform 220ms ease;
+  }
+  .card.animating-out {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  .q-num {
+    color: var(--muted); font-size: 11px; letter-spacing: 3px;
+    text-transform: uppercase; margin-bottom: 20px; font-style: italic;
+  }
+  .q-text {
+    font-size: 24px; color: var(--fg-soft); line-height: 1.45;
+    margin-bottom: 32px; font-weight: 400; letter-spacing: -0.01em;
+  }
+
+  .choices { display: flex; flex-direction: column; gap: 8px; }
+  .choice {
+    background: var(--card); border: 1px solid var(--border);
+    padding: 14px 20px; border-radius: 6px;
+    color: var(--fg-soft); font-family: inherit; font-size: 15px;
+    text-align: left; cursor: pointer; transition: all 180ms ease;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .choice:hover { border-color: var(--accent); background: #18160f; transform: translateX(4px); }
+  .choice .letter { color: var(--accent); font-style: italic; font-size: 13px; width: 14px; }
+  .choice.selected { border-color: var(--accent); background: #18160f; }
+
+  .slider-wrap { margin-top: 8px; }
+  .slider-labels { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; font-style: italic; margin-bottom: 20px; }
+  .slider {
+    width: 100%; -webkit-appearance: none; appearance: none;
+    height: 1px; background: #262626; outline: none; cursor: pointer;
+  }
+  .slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--accent); cursor: pointer; border: 3px solid var(--bg);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+  .slider::-moz-range-thumb {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--accent); cursor: pointer; border: 3px solid var(--bg);
+  }
+  .slider-value { text-align: center; font-size: 40px; color: var(--accent); margin-top: 20px; font-weight: 400; }
+
+  .chips-label { font-size: 12px; color: var(--muted); font-style: italic; margin-bottom: 12px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 32px; }
+  .chip {
+    background: var(--card); border: 1px solid var(--border);
+    padding: 7px 16px; border-radius: 20px; font-size: 13px;
+    cursor: pointer; transition: all 180ms ease; color: var(--fg-soft);
+  }
+  .chip:hover { border-color: var(--accent); }
+  .chip.selected { border-color: var(--accent); background: #18160f; color: var(--accent); }
+  .chip:focus-visible { outline: 2px solid var(--accent); }
+
+  .text-input {
+    width: 100%; background: transparent; border: none;
+    border-bottom: 1px solid var(--border); color: var(--fg);
+    font-family: 'Lora', serif; font-size: 17px;
+    padding: 12px 2px; resize: none; outline: none;
+    line-height: 1.7; min-height: 100px;
+    transition: border-color 200ms ease;
+  }
+  .text-input:focus { border-bottom-color: var(--accent); }
+  .text-input::placeholder { color: #454036; font-style: italic; }
+
+  .rank-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 32px; }
+  .rank-item {
+    background: var(--card); border: 1px solid var(--border); border-radius: 6px;
+    padding: 12px 16px; display: flex; align-items: center; gap: 12px;
+    cursor: pointer; transition: all 180ms ease;
+  }
+  .rank-item:hover { border-color: var(--accent); }
+  .rank-item .rank-num { font-size: 13px; color: var(--accent); font-style: italic; width: 20px; }
+  .rank-item .rank-label { font-size: 14px; color: var(--fg-soft); flex: 1; }
+  .rank-item.dragging { border-color: var(--accent); opacity: 0.8; }
+  .rank-item.selected { border-color: var(--accent); background: #18160f; }
+  .rank-item .drag-icon { color: var(--muted); font-size: 16px; }
+
+  .actions { margin-top: 32px; display: flex; justify-content: flex-end; align-items: center; gap: 16px; }
+  .hint { color: var(--muted); font-size: 12px; font-style: italic; }
+  .btn {
+    background: transparent; color: var(--accent); border: 1px solid var(--accent);
+    padding: 10px 24px; border-radius: 4px; font-family: inherit;
+    font-size: 14px; cursor: pointer; transition: all 180ms ease;
+  }
+  .btn:hover { background: var(--accent); color: var(--bg); }
+  .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .final { text-align: center; }
+  .final .big { font-size: 32px; font-style: italic; color: var(--accent); margin-bottom: 14px; }
+  .final .sub { color: var(--muted); font-size: 14px; line-height: 1.7; }
+  .final .voice-ready-wrap { margin-top: 28px; text-align: center; }
+  .final .voice-ready-icon { margin-bottom: 16px; }
+  .loader {
+    display: inline-block; width: 26px; height: 26px;
+    border: 1px solid var(--border); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin 800ms linear infinite; margin-top: 22px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .voice-passage {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 20px 24px; margin-bottom: 24px;
+    font-size: 16px; line-height: 1.8; color: var(--fg-soft);
+    font-style: italic;
+  }
+  .voice-record-wrap { text-align: center; margin-bottom: 24px; }
+  .voice-record-btn {
+    width: 72px; height: 72px; border-radius: 50%;
+    background: var(--card); border: 2px solid var(--border);
+    color: var(--muted); cursor: pointer; display: flex;
+    align-items: center; justify-content: center;
+    transition: all 0.2s; margin: 0 auto 12px;
+  }
+  .voice-record-btn svg { width: 28px; height: 28px; }
+  .voice-record-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .voice-record-btn.recording { border-color: #c96a6a; color: #c96a6a; animation: pulseRing 1s ease infinite; }
+  .voice-record-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  @keyframes pulseRing { 0%,100% { box-shadow: 0 0 0 0 rgba(201,106,106,0.4); } 50% { box-shadow: 0 0 0 12px rgba(201,106,106,0); } }
+  .voice-hint { font-size: 13px; color: var(--muted); font-style: italic; }
+  .voice-status { font-size: 13px; color: var(--accent); margin-top: 8px; font-style: italic; min-height: 20px; }
+  .voice-preview { margin-top: 16px; display: flex; align-items: center; gap: 12px; justify-content: center; }
+  .voice-preview audio { height: 36px; }
+  .voice-preview button { background: none; border: 1px solid var(--border); color: var(--muted); padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 12px; font-family: inherit; }
+  .voice-preview button:hover { border-color: var(--accent); color: var(--accent); }
+  .voice-skip { text-align: center; margin-top: 12px; }
+  .voice-skip button { background: none; border: none; color: var(--muted); font-size: 12px; font-family: inherit; cursor: pointer; text-decoration: underline; }
+  .voice-skip button:hover { color: var(--fg-soft); }
+
+  @media (max-width: 768px) {
+    .progress-wrap { padding: 0 20px; }
+    .stage { padding: 100px 20px 60px; }
+    .q-text { font-size: 20px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <a href="/dashboard" class="brand">
+    <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <circle cx="12" cy="12" r="4"/>
+      <path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
+    </svg>
+    <span class="brand-name">MeSync</span>
+  </a>
+</header>
+<div class="progress-wrap">
+  <div class="progress-inner">
+    <span class="progress-text" id="progressText">1 of 11</span>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:10%"></div></div>
+</div>
+
+<div class="stage">
+  <div class="card" id="card"></div>
+</div>
+
+<script>
+const QUESTIONS = [
+  {
+    id: "q1", type: "choice",
+    text: "You walk into a room full of strangers. What's your first move?",
+    options: [
+      { label: "Find the loudest group and introduce yourself", value: 5 },
+      { label: "Start a conversation with whoever's closest", value: 4 },
+      { label: "Wait for someone to approach you", value: 3 },
+      { label: "Find a quiet corner and observe", value: 2 },
+      { label: "Wish you'd stayed home", value: 1 },
+    ],
+  },
+  {
+    id: "q2", type: "choice",
+    text: "A friend cancels plans at the last minute. Your first thought?",
+    options: [
+      { label: "No worries — they must have a good reason", value: 5 },
+      { label: "Mildly annoyed, but I get it", value: 4 },
+      { label: "Fine — but I'll remember this", value: 3 },
+      { label: "Why does this always happen to me?", value: 2 },
+      { label: "Something must be wrong with me", value: 1 },
+    ],
+  },
+  {
+    id: "q3", type: "choice",
+    text: "You have a completely free Saturday. You'd rather…",
+    options: [
+      { label: "Go somewhere you've never been", value: 5 },
+      { label: "Try a new restaurant or activity nearby", value: 4 },
+      { label: "Do something familiar, but with friends", value: 3 },
+      { label: "Stick to your usual routine", value: 2 },
+      { label: "Nothing — making plans feels exhausting", value: 1 },
+    ],
+  },
+  {
+    id: "q4", type: "choice",
+    text: "Your workspace right now looks…",
+    options: [
+      { label: "Immaculate — a place for everything", value: 5 },
+      { label: "Mostly tidy, with a few piles", value: 4 },
+      { label: "Organized chaos — I know where things are", value: 3 },
+      { label: "A mess, but I'll clean it eventually", value: 2 },
+      { label: "I'd rather not say", value: 1 },
+    ],
+  },
+  {
+    id: "q5", type: "slider",
+    text: "How often do you find yourself overthinking decisions?",
+    min: 1, max: 10, leftLabel: "Rarely", rightLabel: "Constantly",
+  },
+  {
+    id: "q6", type: "chips",
+    text: "Which of these genuinely energize you? Select all that apply.",
+    chips: [
+      "Creative work", "Physical exercise", "Deep conversation",
+      "Learning something new", "Helping others", "Building things",
+      "Solo time", "Being outdoors", "Music or art", "Strategy or puzzles",
+    ],
+  },
+  {
+    id: "q7", type: "rank",
+    text: "Rank these by what matters most to you right now. Click to select, then rank.",
+    ranks: ["Career", "Relationships", "Creativity", "Health", "Adventure", "Stability"],
+  },
+  {
+    id: "q8", type: "text",
+    text: "What's a belief you hold that most people around you would disagree with?",
+    placeholder: "Be honest. This stays between us.",
+  },
+  {
+    id: "q9", type: "text",
+    text: "Describe a recent decision you're still second-guessing. What made it hard?",
+    placeholder: "Walk me through it in your own words…",
+  },
+  {
+    id: "q10", type: "text",
+    text: "A stranger asks you 'Who are you?' — what would you say?",
+    placeholder: "One or two sentences. The ones that feel most true.",
+  },
+  {
+    id: "q12", type: "voice_sample",
+    text: "One more thing — paste samples of how you actually talk or write.",
+    placeholder: "Copy-paste texts, DMs, emails, notes, Slack messages… anything that shows your real voice. Use your actual words, slang, abbreviations, emojis — whatever feels like you. This helps your twin sound exactly like you.",
+  },
+];
+
+const ANSWERS = {};
+const RANK_ORDER = [];
+const LETTERS = ["A", "B", "C", "D", "E"];
+let current = 0;
+const card = document.getElementById("card");
+const progressText = document.getElementById("progressText");
+const progressFill = document.getElementById("progressFill");
+
+function updateProgress() {
+  progressText.textContent = `${current + 1} of ${QUESTIONS.length}`;
+  progressFill.style.width = `${((current + 1) / QUESTIONS.length) * 100}%`;
+}
+
+function renderQuestion() {
+  const q = QUESTIONS[current];
+  updateProgress();
+  card.className = "card";
+  card.innerHTML = `
+    <div class="q-num">Question ${current + 1}</div>
+    <div class="q-text">${q.text}</div>
+    <div id="answerZone"></div>
+  `;
+  const zone = document.getElementById("answerZone");
+  if (q.type === "choice") renderChoices(zone, q);
+  else if (q.type === "slider") renderSlider(zone, q);
+  else if (q.type === "chips") renderChips(zone, q);
+  else if (q.type === "rank") renderRank(zone, q);
+  else if (q.type === "text") renderText(zone, q);
+  if (current >= QUESTIONS.length) submit();
+}
+
+function renderChoices(zone, q) {
+  zone.innerHTML = `<div class="choices">` +
+    q.options.map((opt, i) =>
+      `<button class="choice" data-value="${opt.value}">
+         <span class="letter">${LETTERS[i]}</span>
+         <span>${opt.label}</span>
+       </button>`
+    ).join("") + `</div>`;
+
+  zone.querySelectorAll(".choice").forEach(btn => {
+    btn.addEventListener("click", () => {
+      zone.querySelectorAll(".choice").forEach(c => c.classList.remove("selected"));
+      btn.classList.add("selected");
+      ANSWERS[q.id] = parseInt(btn.dataset.value);
+      setTimeout(advance, 220);
+    });
+  });
+}
+
+function renderSlider(zone, q) {
+  const mid = Math.ceil((q.min + q.max) / 2);
+  zone.innerHTML = `
+    <div class="slider-wrap">
+      <div class="slider-labels">
+        <span>${q.leftLabel}</span><span>${q.rightLabel}</span>
+      </div>
+      <input type="range" min="${q.min}" max="${q.max}" value="${mid}" class="slider" id="slider"/>
+      <div class="slider-value" id="sliderVal">${mid}</div>
+    </div>
+    <div class="actions">
+      <button class="btn" id="continueBtn">Continue →</button>
+    </div>`;
+  document.getElementById("slider").addEventListener("input", e => {
+    document.getElementById("sliderVal").textContent = e.target.value;
+  });
+  document.getElementById("continueBtn").addEventListener("click", () => {
+    ANSWERS[q.id] = parseInt(document.getElementById("slider").value);
+    advance();
+  });
+}
+
+function renderChips(zone, q) {
+  ANSWERS[q.id] = [];
+  zone.innerHTML = `<div class="chips-label">Select all that resonate — none, some, or all</div>
+    <div class="chips">` +
+    q.chips.map(chip =>
+      `<button class="chip" data-chip="${chip}">${chip}</button>`
+    ).join("") + `</div>
+    <div class="actions">
+      <button class="btn" id="continueBtn" disabled>Continue →</button>
+    </div>`;
+
+  zone.querySelectorAll(".chip").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const selected = ANSWERS[q.id];
+      if (btn.classList.contains("selected")) {
+        btn.classList.remove("selected");
+        ANSWERS[q.id] = selected.filter(c => c !== btn.dataset.chip);
+      } else {
+        btn.classList.add("selected");
+        ANSWERS[q.id].push(btn.dataset.chip);
+      }
+      document.getElementById("continueBtn").disabled = ANSWERS[q.id].length === 0;
+    });
+  });
+  document.getElementById("continueBtn").addEventListener("click", () => advance());
+}
+
+let rankSelected = null;
+
+function renderRank(zone, q) {
+  ANSWERS[q.id] = [];
+  RANK_ORDER.length = 0;
+  rankSelected = null;
+  zone.innerHTML = `
+    <div class="chips-label">Click to select, click again to move in rank order</div>
+    <div class="rank-list" id="rankList">` +
+    q.ranks.map((r, i) =>
+      `<div class="rank-item" data-rank="${r}" data-pos="${i}">
+        <span class="rank-num" id="rn-${r}">—</span>
+        <span class="rank-label">${r}</span>
+      </div>`
+    ).join("") + `</div>
+    <div class="actions">
+      <button class="btn" id="continueBtn" disabled>Continue →</button>
+    </div>`;
+
+  zone.querySelectorAll(".rank-item").forEach(item => {
+    item.addEventListener("click", () => {
+      const r = item.dataset.rank;
+      if (rankSelected === r) {
+        item.classList.remove("selected");
+        document.getElementById("rn-" + r).textContent = "—";
+        const idx = RANK_ORDER.indexOf(r);
+        if (idx > -1) RANK_ORDER.splice(idx, 1);
+        rankSelected = null;
+      } else {
+        if (rankSelected) {
+          const prev = document.querySelector(`.rank-item[data-rank="${rankSelected}"]`);
+          prev.classList.remove("selected");
+        }
+        rankSelected = r;
+        item.classList.add("selected");
+        RANK_ORDER.push(r);
+        document.getElementById("rn-" + r).textContent = RANK_ORDER.length;
+      }
+      zone.querySelectorAll(".rank-item").forEach(it => it.classList.remove("dragging"));
+      document.getElementById("continueBtn").disabled = RANK_ORDER.length < q.ranks.length;
+    });
+  });
+  document.getElementById("continueBtn").addEventListener("click", () => {
+    ANSWERS[q.id] = [...RANK_ORDER];
+    advance();
+  });
+}
+
+function renderText(zone, q) {
+  zone.innerHTML = `
+    <textarea class="text-input" id="textInput" placeholder="${q.placeholder}" rows="4"></textarea>
+    <div class="actions">
+      <span class="hint">Take your time.</span>
+      <button class="btn" id="continueBtn" disabled>Continue →</button>
+    </div>`;
+  const input = document.getElementById("textInput");
+  input.focus();
+  input.addEventListener("input", () => {
+    document.getElementById("continueBtn").disabled = input.value.trim().length < 3;
+  });
+  input.addEventListener("keydown", e => {
+    if (e.key === "Enter" && e.shiftKey === false) {
+      e.preventDefault();
+      if (!document.getElementById("continueBtn").disabled) {
+        ANSWERS[q.id] = input.value.trim();
+        advance();
+      }
+    }
+  });
+  document.getElementById("continueBtn").addEventListener("click", () => {
+    ANSWERS[q.id] = input.value.trim();
+    advance();
+  });
+}
+
+function renderVoiceSample(zone, q) {
+  zone.innerHTML = `
+    <textarea class="text-input" id="textInput" placeholder="${q.placeholder}" rows="8"></textarea>
+    <div class="actions">
+      <span class="hint">The more you paste, the better your twin will sound like you. Can skip if you want.</span>
+      <button class="btn" id="continueBtn">Continue →</button>
+    </div>`;
+  const input = document.getElementById("textInput");
+  input.focus();
+  document.getElementById("continueBtn").addEventListener("click", () => {
+    ANSWERS[q.id] = input.value.trim();
+    advance();
+  });
+}
+
+function advance() {
+  card.classList.add("animating-out");
+  setTimeout(() => {
+    card.classList.remove("animating-out");
+    current++;
+    if (current >= QUESTIONS.length) submit();
+    else renderQuestion();
+  }, 240);
+}
+
+function submit() {
+  progressFill.style.width = "100%";
+  progressText.textContent = "Done";
+  card.className = "card final";
+  card.innerHTML = `
+    <div class="big" id="buildTitle">Building your twin…</div>
+    <div class="sub" id="buildSub">We're mapping your patterns and personality. This will only take a moment.</div>
+    <div class="loader" id="buildLoader"></div>
+    <div class="voice-ready-wrap" id="voiceReadyWrap" style="display:none">
+      <div class="voice-ready-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48" style="color:var(--accent)">
+          <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
+          <path d="M19 10v2a7 7 0 01-14 0v-2"/>
+          <line x1="12" y1="19" x2="12" y2="23"/>
+          <line x1="8" y1="23" x2="16" y2="23"/>
+        </svg>
+      </div>
+      <div class="sub" id="voiceReadySub">Your voice is ready. Here's what it sounds like.</div>
+      <audio id="testAudio" controls style="margin-top:20px;height:40px;width:100%;max-width:400px;"></audio>
+      <button class="btn" id="continueFromVoice" style="margin-top:20px">Continue to Dashboard →</button>
+    </div>`;
+
+  const formData = new FormData();
+  formData.append("answers", JSON.stringify(ANSWERS));
+
+  fetch("/onboarding/submit", {
+    method: "POST",
+    body: formData,
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) {
+      document.getElementById("buildTitle").textContent = "Something went wrong.";
+      document.getElementById("buildSub").textContent = data.error;
+      document.getElementById("buildLoader").style.display = "none";
+      return;
+    }
+    document.getElementById("buildTitle").textContent = "Your twin is ready.";
+    document.getElementById("buildSub").textContent = "All done. Here's a final look at who you told us you are.";
+    document.getElementById("buildLoader").style.display = "none";
+
+    if (data.test_audio) {
+      document.getElementById("voiceReadyWrap").style.display = "block";
+      document.getElementById("testAudio").src = data.test_audio;
+      document.getElementById("continueFromVoice").addEventListener("click", () => {
+        window.location.href = data.redirect;
+      });
+    } else {
+      setTimeout(() => { window.location.href = data.redirect; }, 800);
+    }
+  })
+  .catch(err => {
+    document.getElementById("buildTitle").textContent = "Something went wrong.";
+    document.getElementById("buildSub").textContent = String(err);
+    document.getElementById("buildLoader").style.display = "none";
+  });
+}
+
+renderQuestion();
+</script>
+</body>
+</html>

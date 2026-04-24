@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Knowledge Graph · MeSync</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0a0a0a; --fg: #e8e4db; --fg-soft: #c9c4b8; --muted: #6b665d;
+    --accent: #c9a96a; --card: #141414; --border: #1c1c1c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--bg); color: var(--fg); font-family: 'Lora', serif;
+    font-weight: 400; min-height: 100vh; overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 40px; height: 64px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    text-decoration: none;
+  }
+  .brand-icon {
+    width: 28px; height: 28px; color: var(--accent);
+  }
+  .brand-name {
+    font-size: 12px; letter-spacing: 3px; color: var(--muted); text-transform: uppercase;
+  }
+  nav { display: flex; align-items: center; gap: 6px; }
+  nav a {
+    display: flex; align-items: center; gap: 6px;
+    color: var(--muted); text-decoration: none; font-size: 13px;
+    padding: 8px 14px; border-radius: 4px; transition: color 0.2s;
+  }
+  nav a svg { width: 15px; height: 15px; }
+  nav a:hover { color: var(--fg-soft); }
+  nav a[aria-current="page"] { color: var(--accent); }
+  nav a.btn-logout {
+    color: var(--muted); margin-left: 8px;
+    padding: 8px 14px; border-radius: 4px; transition: color 0.2s;
+  }
+  nav a.btn-logout:hover { color: #c96a6a; }
+
+  main {
+    padding: 88px 40px 40px;
+    min-height: 100vh;
+  }
+
+  .page-header { max-width: 1100px; margin: 0 auto 20px; display: flex; align-items: baseline; gap: 20px; }
+  .page-title { font-size: 22px; color: var(--fg-soft); font-weight: 400; }
+  .page-subtitle { color: var(--muted); font-size: 14px; font-style: italic; }
+  .graph-summary { color: var(--muted); font-size: 13px; max-width: 1100px; margin: 0 auto 16px; }
+
+  .graph-container {
+    width: 100%; max-width: 1100px; height: 65vh;
+    margin: 0 auto; background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden; position: relative;
+  }
+  .graph-empty {
+    display: flex; align-items: center; justify-content: center;
+    height: 100%; color: var(--muted); font-style: italic; font-size: 15px; text-align: center;
+    padding: 40px;
+  }
+
+  .tooltip {
+    position: fixed; background: rgba(12,12,12,0.97); border: 1px solid #2a2a2a;
+    color: var(--fg); padding: 12px 16px; border-radius: 8px;
+    font-size: 12px; max-width: 240px; pointer-events: none;
+    opacity: 0; transition: opacity 0.15s; z-index: 200;
+    line-height: 1.6;
+  }
+  .tooltip .tt-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 6px; }
+  .tooltip .tt-type { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 10px; margin-bottom: 4px; }
+  .tooltip .tt-text { color: var(--fg-soft); font-size: 12px; }
+
+  .legend {
+    display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap;
+    max-width: 1100px; margin-left: auto; margin-right: auto;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); text-transform: capitalize; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .legend-dot.person { background: #c9a96a; }
+  .legend-dot.emotion { background: #c96a9a; }
+  .legend-dot.concept { background: #6a9ac9; }
+  .legend-dot.activity { background: #6ec96e; }
+  .legend-dot.goal { background: #c9c96e; }
+  .legend-dot.location { background: #9a6ac9; }
+
+  .graph-controls {
+    position: absolute; bottom: 16px; right: 16px;
+    display: flex; gap: 6px;
+  }
+  .graph-btn {
+    background: var(--card); border: 1px solid var(--border); color: var(--muted);
+    padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;
+    font-family: inherit; transition: all 0.2s;
+  }
+  .graph-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  @media (max-width: 768px) {
+    header { padding: 0 20px; }
+    nav a span { display: none; }
+    nav a { padding: 8px 10px; }
+    main { padding: 80px 20px 40px; }
+    .page-header { flex-direction: column; gap: 4px; }
+    .graph-container { height: 50vh; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <a href="/dashboard" class="brand">
+    <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <circle cx="12" cy="12" r="4"/>
+      <path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
+    </svg>
+    <span class="brand-name">MeSync</span>
+  </a>
+  <nav role="navigation" aria-label="Main navigation">
+    <a href="/chat" aria-label="Chat">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+      </svg>
+      <span>Chat</span>
+    </a>
+    <a href="/journal" aria-label="Journal">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+        <polyline points="10 9 9 9 8 9"/>
+      </svg>
+      <span>Journal</span>
+    </a>
+    <a href="/graph" aria-current="page" aria-label="Graph">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/>
+        <circle cx="12" cy="18" r="3"/>
+        <line x1="8.5" y1="7.5" x2="10.5" y2="15.5"/>
+        <line x1="15.5" y1="7.5" x2="13.5" y2="15.5"/>
+      </svg>
+      <span>Graph</span>
+    </a>
+    <a href="/decisions" aria-label="Decisions">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M12 6v6l4 2"/>
+      </svg>
+      <span>Decisions</span>
+    </a>
+    <a href="/logout" class="btn-logout" aria-label="Logout">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+        <polyline points="16 17 21 12 16 7"/>
+        <line x1="21" y1="12" x2="9" y2="12"/>
+      </svg>
+    </a>
+  </nav>
+</header>
+
+<main>
+  <div class="page-header">
+    <h1 class="page-title">Knowledge Graph</h1>
+    <p class="page-subtitle">Your semantic memory, visualized</p>
+  </div>
+  <p class="graph-summary" id="graphSummary">Loading your knowledge map...</p>
+
+  <div class="graph-container" id="graphContainer">
+    <div class="graph-empty" id="graphEmpty">Start journaling to build your knowledge graph.</div>
+    <svg id="graphSvg" style="display:none;width:100%;height:100%;"></svg>
+  </div>
+
+  <div class="legend" id="graphLegend" style="display:none">
+    <div class="legend-item"><div class="legend-dot person"></div>Person</div>
+    <div class="legend-item"><div class="legend-dot emotion"></div>Emotion</div>
+    <div class="legend-item"><div class="legend-dot concept"></div>Concept</div>
+    <div class="legend-item"><div class="legend-dot activity"></div>Activity</div>
+    <div class="legend-item"><div class="legend-dot goal"></div>Goal</div>
+    <div class="legend-item"><div class="legend-dot location"></div>Location</div>
+  </div>
+
+  <div class="graph-controls" id="graphControls" style="display:none">
+    <button class="graph-btn" onclick="resetZoom()">Reset</button>
+    <button class="graph-btn" onclick="zoomIn()">+</button>
+    <button class="graph-btn" onclick="zoomOut()">−</button>
+  </div>
+</main>
+
+<div class="tooltip" id="graphTooltip"></div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+  const nodeColors = {
+    person: '#c9a96a', emotion: '#c96a9a', concept: '#6a9ac9',
+    activity: '#6ec96e', goal: '#c9c96e', location: '#9a6ac9', default: '#c9a96a'
+  };
+  let currentZoom;
+
+  async function loadGraph() {
+    try {
+      const res = await fetch('/graph/data');
+      const data = await res.json();
+      document.getElementById('graphSummary').textContent = data.summary || '';
+      if (!data.nodes || data.nodes.length === 0) return;
+      renderGraph(data.nodes, data.edges);
+    } catch(e) {
+      document.getElementById('graphSummary').textContent = 'Could not load graph data.';
+    }
+  }
+
+  function renderGraph(nodes, edges) {
+    const container = document.getElementById('graphContainer');
+    const svg = d3.select('#graphSvg');
+    svg.style('display', 'block');
+    document.getElementById('graphEmpty').style.display = 'none';
+    document.getElementById('graphLegend').style.display = 'flex';
+    document.getElementById('graphControls').style.display = 'flex';
+
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+    svg.attr('width', width).attr('height', height);
+
+    const simulation = d3.forceSimulation(nodes)
+      .force('link', d3.forceLink(edges).id(d => d.id).distance(180).strength(0.3))
+      .force('charge', d3.forceManyBody().strength(-220))
+      .force('center', d3.forceCenter(width / 2, height / 2))
+      .force('collision', d3.forceCollide().radius(55))
+      .force('x', d3.forceX(width / 2).strength(0.05))
+      .force('y', d3.forceY(height / 2).strength(0.05))
+      .velocityDecay(0.4);
+
+    const g = svg.append('g');
+    const zoom = d3.zoom().scaleExtent([0.2, 3]).on('zoom', (e) => {
+      g.attr('transform', e.transform);
+      currentZoom = e.transform;
+    });
+    svg.call(zoom);
+
+    const link = g.append('g').selectAll('line').data(edges).join('line')
+      .attr('stroke', '#1e1e1e')
+      .attr('stroke-width', 1.5)
+      .attr('stroke-opacity', 0.8);
+
+    const node = g.append('g').selectAll('g').data(nodes).join('g').attr('class', 'node');
+
+    node.append('circle')
+      .attr('r', 8)
+      .attr('fill', d => nodeColors[d.type] || nodeColors.default)
+      .attr('stroke', '#0a0a0a')
+      .attr('stroke-width', 2);
+
+    node.append('text')
+      .attr('dx', 13).attr('dy', 4)
+      .attr('fill', '#9a958c')
+      .style('font-size', '11px')
+      .style('font-family', 'Lora, serif')
+      .text(d => d.label || d.id);
+
+    node.call(d3.drag()
+      .on('start', (e, d) => { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+      .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
+      .on('end', (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
+    );
+
+    const tooltip = document.getElementById('graphTooltip');
+    node.on('mouseover', (e, d) => {
+      const conns = edges.filter(l => l.source.id === d.id || l.target.id === d.id).length;
+      tooltip.innerHTML = `<div class="tt-label">${d.label || d.id}</div><div class="tt-type" style="background:${nodeColors[d.type] || nodeColors.default}22;color:${nodeColors[d.type] || nodeColors.default}">${d.type || 'concept'}</div><div class="tt-text" style="margin-top:4px">${conns} connection${conns !== 1 ? 's' : ''}</div>`;
+      tooltip.style.opacity = '1';
+      tooltip.style.left = (e.pageX + 14) + 'px';
+      tooltip.style.top = (e.pageY - 10) + 'px';
+    }).on('mouseout', () => { tooltip.style.opacity = '0'; });
+
+    simulation.on('tick', () => {
+      link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+          .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+      node.attr('transform', d => `translate(${d.x},${d.y})`);
+    });
+  }
+
+  function resetZoom() { d3.select('#graphSvg').transition().call(d3.zoom().transform, d3.zoomIdentity); }
+  function zoomIn() { d3.select('#graphSvg').transition().call(d3.zoom().scaleBy, 1.3); }
+  function zoomOut() { d3.select('#graphSvg').transition().call(d3.zoom().scaleBy, 0.7); }
+
+  loadGraph();
+</script>
+</body>
+</html>

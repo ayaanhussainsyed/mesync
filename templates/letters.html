@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Letters · MeSync</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0a0a0a; --fg: #e8e4db; --fg-soft: #c9c4b8; --muted: #6b665d;
+    --accent: #c9a96a; --accent-soft: #a88a4f; --card: #141414; --border: #1c1c1c;
+    --danger: #c96a6a;
+    --sidebar-bg: #0d0c0a;
+    --hover: rgba(201,169,106,0.06);
+    --active: rgba(201,169,106,0.11);
+    --paper: #12110d;
+    --header-h: 64px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
+  html, body {
+    background: var(--bg); color: var(--fg); font-family: 'Lora', serif;
+    height: 100vh; -webkit-font-smoothing: antialiased; overflow: hidden;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background-image: radial-gradient(rgba(201,169,106,0.06) 1px, transparent 1px);
+    background-size: 32px 32px;
+    mask-image: radial-gradient(ellipse at center, black 25%, transparent 85%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 25%, transparent 85%);
+  }
+  body::after {
+    content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(ellipse 500px 400px at 15% 85%, rgba(201,169,106,0.06), transparent 70%),
+      radial-gradient(ellipse 500px 400px at 85% 15%, rgba(201,169,106,0.05), transparent 70%);
+  }
+
+  /* --- Header --- */
+  header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 40px; height: var(--header-h);
+    border-bottom: 1px solid var(--border);
+    background: rgba(10, 10, 10, 0.72);
+    backdrop-filter: blur(14px) saturate(120%);
+    -webkit-backdrop-filter: blur(14px) saturate(120%);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .brand-icon { width: 28px; height: 28px; color: var(--accent); }
+  .brand-name { font-size: 12px; letter-spacing: 3px; color: var(--muted); text-transform: uppercase; }
+  nav { display: flex; align-items: center; gap: 6px; }
+  nav a {
+    display: flex; align-items: center; gap: 6px;
+    color: var(--muted); text-decoration: none; font-size: 13px;
+    padding: 8px 14px; border-radius: 4px; transition: color 0.2s;
+  }
+  nav a svg { width: 15px; height: 15px; }
+  nav a:hover { color: var(--fg-soft); }
+  nav a[aria-current="page"] { color: var(--accent); }
+  nav a.btn-logout:hover { color: var(--danger); }
+
+  /* --- Shell --- */
+  .shell {
+    position: fixed; top: var(--header-h); left: 0; right: 0; bottom: 0;
+    display: flex;
+    z-index: 5;
+  }
+
+  /* --- Sidebar (inbox list) --- */
+  .inbox {
+    width: 340px; flex-shrink: 0;
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .inbox-head {
+    padding: 18px 16px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .inbox-title {
+    font-size: 18px; color: var(--accent); font-style: italic;
+    margin-bottom: 6px;
+  }
+  .inbox-sub {
+    font-size: 11px; color: var(--muted); font-style: italic;
+    letter-spacing: 0.5px; margin-bottom: 12px;
+  }
+  .generate-btn {
+    width: 100%;
+    background: transparent; border: 1px solid var(--accent);
+    color: var(--accent); padding: 10px 14px; border-radius: 6px;
+    font-family: inherit; font-size: 13px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: all 0.2s;
+  }
+  .generate-btn:hover:not(:disabled) { background: var(--accent); color: var(--bg); }
+  .generate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .generate-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+  .next-due {
+    font-size: 11px; color: var(--muted); font-style: italic;
+    margin-top: 10px; text-align: center; letter-spacing: 0.3px;
+  }
+
+  .letter-list {
+    flex: 1; overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(201,169,106,0.2) transparent;
+  }
+  .letter-list::-webkit-scrollbar { width: 6px; }
+  .letter-list::-webkit-scrollbar-thumb { background: rgba(201,169,106,0.2); border-radius: 3px; }
+
+  .letter-row {
+    width: 100%;
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 14px 16px 14px 18px;
+    background: transparent; border: none;
+    color: inherit; font-family: inherit; text-align: left;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(201,169,106,0.06);
+    position: relative;
+    transition: background 0.15s;
+  }
+  .letter-row:hover { background: var(--hover); }
+  .letter-row.active { background: var(--active); }
+  .letter-row.active::before {
+    content: ''; position: absolute;
+    left: 0; top: 14px; bottom: 14px; width: 2px;
+    background: var(--accent); border-radius: 2px;
+  }
+  .letter-row.unread .letter-subject { color: var(--fg); }
+  .letter-row.unread::after {
+    content: '';
+    position: absolute; right: 14px; top: 20px;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+  }
+  .letter-body-wrap { flex: 1; min-width: 0; }
+  .letter-subject {
+    font-size: 14px; color: var(--fg-soft); font-style: italic;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    margin-bottom: 3px;
+    padding-right: 18px;
+  }
+  .letter-row.unread .letter-subject { color: var(--fg); font-weight: 500; }
+  .letter-preview {
+    font-size: 12px; color: var(--muted);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.5;
+  }
+  .letter-date {
+    font-size: 10px; color: var(--muted); font-style: italic;
+    letter-spacing: 1px; text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .letter-trigger-tag {
+    display: inline-block;
+    font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--accent-soft);
+    margin-left: 6px;
+  }
+
+  .inbox-empty {
+    padding: 40px 20px; text-align: center;
+    color: var(--muted); font-style: italic; font-size: 13px;
+  }
+
+  /* --- Reader --- */
+  .reader {
+    flex: 1; min-width: 0; min-height: 0;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  #readerContent {
+    flex: 1; min-height: 0;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+
+  .reader-empty {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 12px;
+    color: var(--muted); font-style: italic; font-size: 14px;
+    padding: 40px; text-align: center;
+  }
+  .reader-empty-icon {
+    width: 48px; height: 48px; color: var(--accent-soft); opacity: 0.5;
+  }
+  .reader-empty-icon svg { width: 100%; height: 100%; stroke: currentColor; fill: none; stroke-width: 1.3; }
+
+  .reader-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 32px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(10,10,10,0.5);
+  }
+  .reader-head-meta {
+    display: flex; flex-direction: column; gap: 4px;
+    min-width: 0; flex: 1; padding-right: 16px;
+  }
+  .reader-head-subject {
+    font-size: 18px; color: var(--accent); font-style: italic;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .reader-head-date {
+    font-size: 11px; color: var(--muted); font-style: italic;
+    letter-spacing: 1.5px; text-transform: uppercase;
+  }
+  .reader-actions { display: flex; gap: 8px; }
+  .icon-btn {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--muted); width: 36px; height: 36px;
+    border-radius: 8px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+  .icon-btn svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+  .icon-btn:hover { border-color: var(--danger); color: var(--danger); }
+
+  /* --- The paper --- */
+  .paper-wrap {
+    flex: 1; min-height: 0;
+    overflow-y: auto; overflow-x: hidden;
+    padding: 24px 32px 48px;
+    display: flex; justify-content: center; align-items: flex-start;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(201,169,106,0.2) transparent;
+  }
+  .paper-wrap::-webkit-scrollbar { width: 6px; }
+  .paper-wrap::-webkit-scrollbar-thumb { background: rgba(201,169,106,0.2); border-radius: 3px; }
+
+  .paper {
+    width: 100%; max-width: 600px;
+    background: var(--paper);
+    border: 1px solid rgba(201,169,106,0.15);
+    border-radius: 3px;
+    padding: 40px 48px;
+    position: relative;
+    box-shadow:
+      inset 0 1px 0 rgba(201,169,106,0.08),
+      inset 0 0 60px rgba(0,0,0,0.4),
+      0 24px 48px rgba(0,0,0,0.6),
+      0 10px 24px rgba(0,0,0,0.4);
+    font-family: 'Cormorant Garamond', 'Lora', serif;
+    animation: paper-in 0.35s ease-out;
+    flex-shrink: 0;
+  }
+  @keyframes paper-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .paper::before,
+  .paper::after {
+    content: ''; position: absolute; left: 0; right: 0; height: 30px;
+    pointer-events: none;
+  }
+  .paper::before {
+    top: 0;
+    background: linear-gradient(180deg, rgba(201,169,106,0.08), transparent);
+  }
+  .paper::after {
+    bottom: 0;
+    background: linear-gradient(0deg, rgba(201,169,106,0.05), transparent);
+  }
+
+  .paper-stamp {
+    position: absolute; top: 16px; right: 20px;
+    font-size: 9px; letter-spacing: 2.5px; text-transform: uppercase;
+    color: var(--accent-soft); font-style: italic;
+    border: 1px solid rgba(201,169,106,0.3);
+    padding: 3px 9px; border-radius: 2px;
+    opacity: 0.7;
+  }
+
+  .paper-body {
+    color: var(--fg);
+    font-size: 16px;
+    line-height: 1.75;
+    white-space: pre-wrap;
+    font-weight: 400;
+    letter-spacing: 0.2px;
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+  }
+
+  .loader {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    padding: 32px; color: var(--muted); font-style: italic; font-size: 13px;
+  }
+  .loader::before {
+    content: ''; width: 12px; height: 12px; border-radius: 50%;
+    border: 2px solid var(--border); border-top-color: var(--accent);
+    animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* --- Mobile --- */
+  .mobile-back {
+    display: none;
+    background: transparent; border: 1px solid var(--border);
+    color: var(--fg-soft); padding: 6px 10px; border-radius: 6px;
+    font-family: inherit; font-size: 12px; cursor: pointer;
+    gap: 6px; align-items: center;
+  }
+  .mobile-back svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+
+  @media (max-width: 820px) {
+    header { padding: 0 16px; }
+    nav a span { display: none; }
+    .shell { flex-direction: column; }
+    .inbox { width: 100%; height: 100%; border-right: none; border-bottom: 1px solid var(--border); }
+    .reader { display: none; }
+    .shell.showing-reader .inbox { display: none; }
+    .shell.showing-reader .reader { display: flex; }
+    .mobile-back { display: inline-flex; }
+    .paper-wrap { padding: 16px 12px 40px; }
+    .paper { padding: 28px 20px; max-width: 100%; }
+    .paper-body { font-size: 15px; line-height: 1.65; }
+    .reader-head { padding: 14px 16px; }
+    .paper-stamp { top: 12px; right: 14px; padding: 2px 7px; font-size: 8px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <a href="/dashboard" class="brand">
+    <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <circle cx="12" cy="12" r="4"/>
+      <path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
+    </svg>
+    <span class="brand-name">MeSync</span>
+  </a>
+  <nav role="navigation" aria-label="Main navigation">
+    <a href="/chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg><span>Chat</span></a>
+    <a href="/journal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span>Journal</span></a>
+    <a href="/letters" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="18" height="14" rx="2"/><polyline points="3 7 12 13 21 7"/></svg><span>Letters</span></a>
+    <a href="/integrations"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg><span>Apps</span></a>
+    <a href="/graph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="12" cy="18" r="3"/><line x1="8.5" y1="7.5" x2="10.5" y2="15.5"/><line x1="15.5" y1="7.5" x2="13.5" y2="15.5"/></svg><span>Graph</span></a>
+    <a href="/drift"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="3 18 8 12 13 16 21 6"/></svg><span>Drift</span></a>
+    <a href="/decisions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg><span>Decisions</span></a>
+    <a href="/logout" class="btn-logout"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></a>
+  </nav>
+</header>
+
+<div class="shell" id="shell">
+  <aside class="inbox" aria-label="Letter inbox">
+    <div class="inbox-head">
+      <div class="inbox-title">Letters from Later</div>
+      <div class="inbox-sub">Your future self writes when they feel like it.</div>
+      <button class="generate-btn" id="generateBtn">
+        <svg viewBox="0 0 24 24"><path d="M4 20h4L20 8l-4-4L4 16v4z"/><line x1="14" y1="6" x2="18" y2="10"/></svg>
+        <span id="generateLabel">Ask for one now</span>
+      </button>
+      <p class="next-due" id="nextDue"></p>
+    </div>
+    <div class="letter-list" id="letterList">
+      <div class="loader">Checking the mailbox</div>
+    </div>
+  </aside>
+
+  <section class="reader" id="reader">
+    <div class="reader-empty" id="readerEmpty">
+      <div class="reader-empty-icon">
+        <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><polyline points="3 7 12 13 21 7"/></svg>
+      </div>
+      <div>Select a letter to read.</div>
+      <div style="font-size:12px; opacity:0.8;">Your first one arrives a few moments after your first few journals.</div>
+    </div>
+    <div id="readerContent" hidden>
+      <div class="reader-head">
+        <button class="mobile-back" id="mobileBack" aria-label="Back to inbox">
+          <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+          Inbox
+        </button>
+        <div class="reader-head-meta">
+          <div class="reader-head-subject" id="readSubject"></div>
+          <div class="reader-head-date" id="readDate"></div>
+        </div>
+        <div class="reader-actions">
+          <button class="icon-btn" id="deleteLetterBtn" aria-label="Delete letter" title="Delete">
+            <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="paper-wrap">
+        <article class="paper" id="paper">
+          <div class="paper-stamp" id="paperStamp">Sealed</div>
+          <div class="paper-body" id="paperBody"></div>
+        </article>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+  let letters = [];
+  let activeId = null;
+  let isGenerating = false;
+
+  const shell        = document.getElementById('shell');
+  const letterList   = document.getElementById('letterList');
+  const readerEmpty  = document.getElementById('readerEmpty');
+  const readerContent= document.getElementById('readerContent');
+  const readSubject  = document.getElementById('readSubject');
+  const readDate     = document.getElementById('readDate');
+  const paperBody    = document.getElementById('paperBody');
+  const paperStamp   = document.getElementById('paperStamp');
+  const generateBtn  = document.getElementById('generateBtn');
+  const generateLabel= document.getElementById('generateLabel');
+  const nextDue      = document.getElementById('nextDue');
+  const deleteBtn    = document.getElementById('deleteLetterBtn');
+  const mobileBack   = document.getElementById('mobileBack');
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text ?? '';
+    return div.innerHTML;
+  }
+
+  function relTime(iso) {
+    const d = new Date(iso);
+    const diff = (Date.now() - d.getTime()) / 1000;
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return Math.floor(diff/60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
+    if (diff < 604800) return Math.floor(diff/86400) + 'd ago';
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  function renderList() {
+    if (!letters.length) {
+      letterList.innerHTML = `
+        <div class="inbox-empty">
+          No letters yet.<br>
+          One should arrive once you've been journaling for a bit.
+        </div>`;
+      return;
+    }
+    letterList.innerHTML = letters.map(l => {
+      const isActive = l.id === activeId;
+      const unread = !l.read_at;
+      const preview = (l.content || '').replace(/\n+/g, ' ').slice(0, 140);
+      const triggerTag = l.trigger === 'manual'
+        ? '<span class="letter-trigger-tag">Requested</span>' : '';
+      return `
+        <button type="button" class="letter-row${isActive ? ' active' : ''}${unread ? ' unread' : ''}" data-id="${l.id}">
+          <div class="letter-body-wrap">
+            <div class="letter-date">${relTime(l.created_at)}${triggerTag}</div>
+            <div class="letter-subject">${escapeHtml(l.subject)}</div>
+            <div class="letter-preview">${escapeHtml(preview)}</div>
+          </div>
+        </button>
+      `;
+    }).join('');
+    letterList.querySelectorAll('.letter-row').forEach(btn => {
+      btn.addEventListener('click', () => openLetter(btn.dataset.id));
+    });
+  }
+
+  function renderNextDue(nextIso, intervalDays) {
+    if (!nextIso) {
+      nextDue.textContent = 'Sends every ~' + intervalDays + ' days.';
+      return;
+    }
+    const next = new Date(nextIso);
+    const diff = next.getTime() - Date.now();
+    if (diff <= 0) {
+      nextDue.textContent = 'A new letter is on its way…';
+    } else {
+      const days = Math.max(0, Math.ceil(diff / 86400000));
+      nextDue.textContent = days <= 1
+        ? 'Next letter: within a day'
+        : `Next letter: in about ${days} days`;
+    }
+  }
+
+  async function openLetter(id) {
+    const letter = letters.find(l => l.id === id);
+    if (!letter) return;
+    activeId = id;
+
+    readSubject.textContent = letter.subject;
+    const d = new Date(letter.created_at);
+    readDate.textContent = d.toLocaleDateString('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+    paperStamp.textContent = letter.trigger === 'manual' ? 'Requested' : 'From Later';
+    paperBody.textContent = letter.content;
+
+    readerEmpty.hidden = true;
+    readerContent.hidden = false;
+    shell.classList.add('showing-reader');
+    renderList();
+
+    if (!letter.read_at) {
+      letter.read_at = new Date().toISOString();
+      try {
+        await fetch('/letters/' + id + '/read', { method: 'POST' });
+      } catch(e) { /* ignore */ }
+    }
+  }
+
+  async function loadLetters({ autoOpenFirst = false } = {}) {
+    try {
+      const res = await fetch('/letters/data');
+      const data = await res.json();
+      letters = data.letters || [];
+      renderList();
+      renderNextDue(data.next_due_at, data.auto_interval_days);
+      if (autoOpenFirst && letters.length && !activeId) {
+        // Auto-open newest on desktop only.
+        if (window.matchMedia('(min-width: 821px)').matches) {
+          openLetter(letters[0].id);
+        }
+      }
+    } catch(e) {
+      letterList.innerHTML = `<div class="inbox-empty">Could not reach the mailbox.</div>`;
+    }
+  }
+
+  async function pollForNewLetter() {
+    // After the initial load, poll a few times in case a background letter
+    // arrives from the auto-generator.
+    const initialIds = new Set(letters.map(l => l.id));
+    const start = Date.now();
+    while (Date.now() - start < 30000) {
+      await new Promise(r => setTimeout(r, 4000));
+      try {
+        const res = await fetch('/letters/data');
+        const data = await res.json();
+        const newLetters = data.letters || [];
+        const fresh = newLetters.filter(l => !initialIds.has(l.id));
+        if (fresh.length) {
+          letters = newLetters;
+          renderList();
+          renderNextDue(data.next_due_at, data.auto_interval_days);
+          if (!activeId && window.matchMedia('(min-width: 821px)').matches) {
+            openLetter(fresh[0].id);
+          }
+          return;
+        }
+      } catch(e) { /* ignore */ }
+    }
+  }
+
+  generateBtn.addEventListener('click', async () => {
+    if (isGenerating) return;
+    isGenerating = true;
+    generateBtn.disabled = true;
+    generateLabel.textContent = 'Writing…';
+    try {
+      const res = await fetch('/letters/generate', { method: 'POST' });
+      const data = await res.json();
+      if (data.ok) {
+        await loadLetters();
+        if (data.id) openLetter(data.id);
+      } else {
+        alert(data.error || 'Could not generate a letter.');
+      }
+    } catch(e) {
+      alert('Request failed.');
+    }
+    isGenerating = false;
+    generateBtn.disabled = false;
+    generateLabel.textContent = 'Ask for one now';
+  });
+
+  deleteBtn.addEventListener('click', async () => {
+    if (!activeId) return;
+    if (!confirm('Delete this letter?')) return;
+    try {
+      await fetch('/letters/' + activeId, { method: 'DELETE' });
+      activeId = null;
+      readerEmpty.hidden = false;
+      readerContent.hidden = true;
+      shell.classList.remove('showing-reader');
+      await loadLetters();
+    } catch(e) { /* ignore */ }
+  });
+
+  mobileBack.addEventListener('click', () => {
+    shell.classList.remove('showing-reader');
+  });
+
+  // Boot
+  (async () => {
+    await loadLetters({ autoOpenFirst: true });
+    // Give the background generator a chance to drop a new letter in.
+    pollForNewLetter();
+  })();
+</script>
+</body>
+</html>

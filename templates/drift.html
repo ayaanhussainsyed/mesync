@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Drift · MeSync</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0a0a0a; --fg: #e8e4db; --fg-soft: #c9c4b8; --muted: #6b665d;
+    --accent: #c9a96a; --accent-soft: #a88a4f; --card: #141414; --border: #1c1c1c;
+    --danger: #c96a6a;
+    --good: #6ac983; --bad: #c96a6a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--bg); color: var(--fg); font-family: 'Lora', serif;
+    min-height: 100vh; -webkit-font-smoothing: antialiased; overflow-x: hidden;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background-image: radial-gradient(rgba(201,169,106,0.06) 1px, transparent 1px);
+    background-size: 32px 32px;
+    mask-image: radial-gradient(ellipse at center, black 25%, transparent 85%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 25%, transparent 85%);
+  }
+  body::after {
+    content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(ellipse 500px 400px at 15% 85%, rgba(201,169,106,0.08), transparent 70%),
+      radial-gradient(ellipse 500px 400px at 85% 15%, rgba(201,169,106,0.06), transparent 70%);
+  }
+  header, main { position: relative; z-index: 10; }
+
+  header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 40px; height: 64px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(10,10,10,0.72);
+    backdrop-filter: blur(14px) saturate(120%);
+    -webkit-backdrop-filter: blur(14px) saturate(120%);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .brand-icon { width: 28px; height: 28px; color: var(--accent); }
+  .brand-name { font-size: 12px; letter-spacing: 3px; color: var(--muted); text-transform: uppercase; }
+  nav { display: flex; align-items: center; gap: 6px; }
+  nav a {
+    display: flex; align-items: center; gap: 6px;
+    color: var(--muted); text-decoration: none; font-size: 13px;
+    padding: 8px 14px; border-radius: 4px; transition: color 0.2s;
+  }
+  nav a svg { width: 15px; height: 15px; }
+  nav a:hover { color: var(--fg-soft); }
+  nav a[aria-current="page"] { color: var(--accent); }
+  nav a.btn-logout:hover { color: var(--danger); }
+
+  main { padding: 100px 32px 60px; max-width: 960px; margin: 0 auto; }
+  .page-head { margin-bottom: 32px; text-align: center; }
+  .page-title { font-size: 34px; font-style: italic; color: var(--accent); font-weight: 400; }
+  .page-sub { color: var(--muted); font-size: 14px; margin-top: 8px; font-style: italic; }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .card {
+    background: rgba(20,20,20,0.72);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--border); border-radius: 12px;
+    padding: 22px 24px;
+  }
+  .card.full { grid-column: 1 / -1; }
+  .card-label {
+    font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--muted); font-style: italic; margin-bottom: 10px;
+  }
+  .card-title {
+    font-size: 18px; color: var(--fg-soft); font-style: italic;
+    margin-bottom: 16px;
+  }
+
+  /* Wellbeing dial */
+  .wellbeing {
+    display: flex; align-items: center; gap: 18px;
+    margin-top: 6px;
+  }
+  .wb-bigs { display: flex; flex-direction: column; gap: 2px; }
+  .wb-value { font-size: 40px; font-style: italic; color: var(--accent); line-height: 1; }
+  .wb-change { font-size: 13px; color: var(--fg-soft); font-style: italic; }
+  .wb-change.up { color: var(--good); }
+  .wb-change.down { color: var(--bad); }
+  .wb-meta { color: var(--muted); font-size: 12px; font-style: italic; }
+  .wb-scale {
+    flex: 1; height: 12px; position: relative;
+    background: linear-gradient(to right, var(--bad) 0%, var(--muted) 50%, var(--good) 100%);
+    border-radius: 6px; opacity: 0.7;
+  }
+  .wb-marker {
+    position: absolute; top: -6px; width: 4px; height: 24px;
+    background: var(--accent); border-radius: 2px;
+    box-shadow: 0 0 10px var(--accent);
+    transition: left 0.5s;
+  }
+  .wb-marker.older { opacity: 0.4; background: var(--muted); box-shadow: none; }
+
+  /* Mood bars */
+  .mood-row {
+    display: flex; align-items: center; gap: 12px;
+    font-size: 13px; margin-bottom: 10px;
+  }
+  .mood-name { width: 72px; color: var(--fg-soft); font-style: italic; }
+  .mood-track {
+    flex: 1; height: 8px; border-radius: 4px;
+    background: rgba(255,255,255,0.04); position: relative; overflow: hidden;
+  }
+  .mood-fill-recent, .mood-fill-older {
+    position: absolute; top: 0; bottom: 0; left: 0;
+    border-radius: 4px;
+  }
+  .mood-fill-older  { background: rgba(255,255,255,0.08); }
+  .mood-fill-recent { background: var(--accent); box-shadow: 0 0 12px rgba(201,169,106,0.4); }
+  .mood-val { width: 48px; color: var(--muted); font-size: 12px; text-align: right; }
+
+  .legend { display: flex; gap: 16px; font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-top: 8px; }
+  .legend-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+  .legend-swatch.recent { background: var(--accent); }
+  .legend-swatch.older { background: rgba(255,255,255,0.25); }
+
+  /* Cadence sparkline (bars) */
+  .cadence-bars {
+    display: flex; align-items: flex-end; gap: 6px; height: 110px;
+  }
+  .cadence-bar {
+    flex: 1; background: linear-gradient(to top, rgba(201,169,106,0.5), rgba(201,169,106,0.15));
+    border-radius: 4px 4px 0 0; position: relative; min-height: 3px;
+    transition: height 0.4s;
+  }
+  .cadence-bar .count {
+    position: absolute; top: -18px; left: 0; right: 0; text-align: center;
+    font-size: 11px; color: var(--muted);
+  }
+  .cadence-labels {
+    display: flex; gap: 6px; margin-top: 8px;
+  }
+  .cadence-labels span {
+    flex: 1; text-align: center; font-size: 10px; color: var(--muted);
+    letter-spacing: 1px; text-transform: uppercase;
+  }
+
+  /* Big Five bars */
+  .trait-row {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 10px; font-size: 13px;
+  }
+  .trait-name { width: 130px; color: var(--fg-soft); font-style: italic; }
+  .trait-track { flex: 1; height: 6px; background: rgba(255,255,255,0.04); border-radius: 3px; overflow: hidden; }
+  .trait-fill { height: 100%; background: var(--accent); border-radius: 3px; }
+  .trait-val { width: 40px; color: var(--muted); font-size: 12px; text-align: right; }
+
+  .stat {
+    display: flex; align-items: baseline; gap: 10px;
+  }
+  .stat-value { font-size: 32px; font-style: italic; color: var(--accent); }
+  .stat-label { color: var(--muted); font-size: 12px; letter-spacing: 1px; text-transform: uppercase; font-style: italic; }
+  .delta {
+    font-size: 13px; font-style: italic; color: var(--fg-soft);
+  }
+  .delta.up { color: var(--good); }
+  .delta.down { color: var(--bad); }
+
+  .empty-hint {
+    text-align: center; padding: 40px;
+    color: var(--muted); font-style: italic; font-size: 14px;
+    border: 1px dashed var(--border); border-radius: 12px; margin-top: 8px;
+  }
+
+  @media (max-width: 700px) {
+    main { padding: 90px 16px 40px; }
+    header { padding: 0 20px; }
+    .grid { grid-template-columns: 1fr; }
+    .page-title { font-size: 26px; }
+    nav a span { display: none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <a href="/dashboard" class="brand">
+    <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <circle cx="12" cy="12" r="4"/>
+      <path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
+    </svg>
+    <span class="brand-name">MeSync</span>
+  </a>
+  <nav role="navigation" aria-label="Main navigation">
+    <a href="/chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg><span>Chat</span></a>
+    <a href="/journal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span>Journal</span></a>
+    <a href="/letters"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="18" height="14" rx="2"/><polyline points="3 7 12 13 21 7"/></svg><span>Letters</span></a>
+    <a href="/integrations"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg><span>Apps</span></a>
+    <a href="/graph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="12" cy="18" r="3"/><line x1="8.5" y1="7.5" x2="10.5" y2="15.5"/><line x1="15.5" y1="7.5" x2="13.5" y2="15.5"/></svg><span>Graph</span></a>
+    <a href="/drift" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="3 18 8 12 13 16 21 6"/></svg><span>Drift</span></a>
+    <a href="/decisions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg><span>Decisions</span></a>
+    <a href="/logout" class="btn-logout"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></a>
+  </nav>
+</header>
+
+<main>
+  <div class="page-head">
+    <h1 class="page-title">Drift</h1>
+    <p class="page-sub">How you've been moving over time — mood, cadence, and traits.</p>
+  </div>
+
+  <div id="root"></div>
+</main>
+
+<script>
+  const TRAITS = [
+    ['extraversion', 'Extraversion'],
+    ['agreeableness', 'Agreeableness'],
+    ['openness', 'Openness'],
+    ['conscientiousness', 'Conscientiousness'],
+    ['neuroticism', 'Neuroticism'],
+  ];
+  const MOODS = ['great', 'good', 'neutral', 'low', 'rough'];
+
+  function moodBar(name, recent, older) {
+    return `
+      <div class="mood-row">
+        <div class="mood-name">${name}</div>
+        <div class="mood-track">
+          <div class="mood-fill-older" style="width:${older}%"></div>
+          <div class="mood-fill-recent" style="width:${recent}%"></div>
+        </div>
+        <div class="mood-val">${recent}%</div>
+      </div>`;
+  }
+
+  function wbMarker(val) {
+    if (val === null || val === undefined) return null;
+    // map -2..+2 → 0..100
+    return Math.max(0, Math.min(100, (val + 2) / 4 * 100));
+  }
+
+  function render(data) {
+    const root = document.getElementById('root');
+    if ((data.totals.entries || 0) === 0) {
+      root.innerHTML = `<p class="empty-hint">No journal entries yet. Start writing to see yourself drift.</p>`;
+      return;
+    }
+
+    // Wellbeing card
+    const wbR = data.wellbeing.recent, wbO = data.wellbeing.older;
+    const wbRpos = wbMarker(wbR), wbOpos = wbMarker(wbO);
+    let wbDelta = '';
+    if (wbR !== null && wbO !== null) {
+      const d = (wbR - wbO).toFixed(2);
+      const cls = d > 0 ? 'up' : (d < 0 ? 'down' : '');
+      const arrow = d > 0 ? '↑' : (d < 0 ? '↓' : '·');
+      wbDelta = `<span class="wb-change ${cls}">${arrow} ${Math.abs(d)} vs older</span>`;
+    }
+
+    // Cadence max for scaling
+    const maxC = Math.max(1, ...data.cadence.map(c => c.count));
+
+    // Length delta
+    const lenDelta = data.length.recent - data.length.older;
+    const lenCls = lenDelta > 0 ? 'up' : (lenDelta < 0 ? 'down' : '');
+    const lenArrow = lenDelta > 0 ? '↑' : (lenDelta < 0 ? '↓' : '·');
+
+    const hasBigFive = data.big_five && Object.keys(data.big_five).length > 0;
+
+    root.innerHTML = `
+      <div class="grid">
+        <div class="card full">
+          <div class="card-label">Wellbeing Pulse</div>
+          <div class="card-title">How you've been feeling</div>
+          <div class="wellbeing">
+            <div class="wb-bigs">
+              <div class="wb-value">${wbR === null ? '—' : wbR}</div>
+              ${wbDelta}
+              <div class="wb-meta">on a scale from −2 (rough) to +2 (great)</div>
+            </div>
+            <div class="wb-scale" aria-hidden="true">
+              ${wbOpos !== null ? `<div class="wb-marker older" style="left:${wbOpos}%" title="Older average"></div>` : ''}
+              ${wbRpos !== null ? `<div class="wb-marker"       style="left:${wbRpos}%" title="Recent average"></div>` : ''}
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">Mood Mix</div>
+          <div class="card-title">Last 30 days vs earlier</div>
+          ${MOODS.map(m => moodBar(m.charAt(0).toUpperCase() + m.slice(1), data.mood.recent[m], data.mood.older[m])).join('')}
+          <div class="legend">
+            <span><span class="legend-swatch recent"></span>Recent</span>
+            <span><span class="legend-swatch older"></span>Older</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">Writing Cadence</div>
+          <div class="card-title">Entries per week</div>
+          <div class="cadence-bars">
+            ${data.cadence.map(c => `
+              <div class="cadence-bar" style="height:${(c.count / maxC) * 100}%">
+                ${c.count > 0 ? `<span class="count">${c.count}</span>` : ''}
+              </div>
+            `).join('')}
+          </div>
+          <div class="cadence-labels">
+            ${data.cadence.map(c => `<span>${c.week.replace(' ago','').replace('this week','now')}</span>`).join('')}
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">Depth</div>
+          <div class="card-title">Avg characters per entry</div>
+          <div class="stat">
+            <span class="stat-value">${data.length.recent}</span>
+            <span class="stat-label">chars recent</span>
+          </div>
+          <p class="delta ${lenCls}" style="margin-top:6px;">${lenArrow} ${Math.abs(lenDelta)} vs earlier avg (${data.length.older})</p>
+        </div>
+
+        <div class="card">
+          <div class="card-label">Volume</div>
+          <div class="card-title">Entries in the window</div>
+          <div class="stat">
+            <span class="stat-value">${data.totals.recent_entries}</span>
+            <span class="stat-label">in the last 30 days</span>
+          </div>
+          <p class="delta" style="margin-top:6px;">${data.totals.older_entries} earlier · ${data.totals.entries} total</p>
+        </div>
+
+        ${hasBigFive ? `
+        <div class="card full">
+          <div class="card-label">Baseline Traits</div>
+          <div class="card-title">Big Five from onboarding</div>
+          ${TRAITS.map(([k, name]) => {
+            const v = Math.round(data.big_five[k] || 0);
+            return `
+              <div class="trait-row">
+                <div class="trait-name">${name}</div>
+                <div class="trait-track"><div class="trait-fill" style="width:${v}%"></div></div>
+                <div class="trait-val">${v}%</div>
+              </div>`;
+          }).join('')}
+          <p class="delta" style="margin-top:12px; color: var(--muted);">Re-run onboarding from your dashboard to refresh this baseline.</p>
+        </div>` : ''}
+      </div>
+    `;
+  }
+
+  async function load() {
+    try {
+      const res = await fetch('/drift/data');
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      render(data);
+    } catch(e) {
+      document.getElementById('root').innerHTML = `<p class="empty-hint">Could not load drift data.</p>`;
+    }
+  }
+  load();
+</script>
+</body>
+</html>
