@@ -10,7 +10,7 @@ class Config:
     ELEVENLABS_API_KEY = os.environ.get("ELEVENLABS_API_KEY", "")
     MONGO_URI = os.environ.get(
         "MONGO_URI",
-        "mongodb+srv://greensync:LljysdQhhLFxyG5t@cluster0.y31xe.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+        ""
     )
     MONGO_DB_NAME = os.environ.get("MONGO_DB_NAME", "MeSync")
     OPENAI_EMBEDDING_MODEL = "text-embedding-3-small"
