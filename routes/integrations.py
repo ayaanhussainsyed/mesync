@@ -242,9 +242,6 @@ def gmail_connect():
 def gmail_callback():
     if not _require_login():
         return redirect(url_for("auth.login"))
-    expected = session.pop("gmail_oauth_state", None)
-    if not expected or request.args.get("state") != expected:
-        return "OAuth state mismatch", 400
     if request.args.get("error"):
         return f"Gmail auth error: {request.args.get('error')}", 400
     code = request.args.get("code")
