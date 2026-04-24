@@ -1,3 +1,4 @@
+import json
 from openai import OpenAI
 from config import Config
 from services.embedding_service import embed
@@ -5,22 +6,318 @@ from services.embedding_service import embed
 client = OpenAI(api_key=Config.OPENAI_API_KEY)
 
 
-def chat_with_twin(user_id: str, messages: list, mode: str, personality_context: str, vocabulary_style: str) -> str:
+# --- Tool definitions (WhatsApp) --------------------------------------------
+WHATSAPP_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "whatsapp_send",
+            "description": (
+                "Send a WhatsApp message from the user's own account to a phone number. "
+                "Always CONFIRM the exact recipient number AND the exact message wording "
+                "with the user in conversation before calling this — the action is "
+                "immediate and cannot be undone. The recipient number must be digits only "
+                "with country code (no +, no spaces). E.g. 919876543210."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "to": {
+                        "type": "string",
+                        "description": "Recipient phone with country code, digits only. Example: 919876543210.",
+                    },
+                    "message": {
+                        "type": "string",
+                        "description": "Exact body of the message to send, in the user's own voice.",
+                    },
+                },
+                "required": ["to", "message"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "whatsapp_recent_chats",
+            "description": "List the names of the user's most recent WhatsApp chats (metadata only — no message bodies). Use this when the user asks who they've been talking to.",
+            "parameters": {
+                "type": "object",
+                "properties": {"limit": {"type": "integer", "minimum": 1, "maximum": 30, "default": 15}},
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "whatsapp_recent_messages",
+            "description": "Fetch the user's most recent WhatsApp messages across all chats, newest first. Each item includes chat name, from_me flag, author, and body. Call this for 'what's my last message', 'who messaged me', 'what did X say', etc. Use the `only` parameter to filter when the user asks specifically about sent or received messages.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "limit": {"type": "integer", "minimum": 1, "maximum": 30, "default": 10},
+                    "only": {
+                        "type": "string",
+                        "enum": ["sent", "received"],
+                        "description": "Optional filter. Use 'sent' when the user asks about messages THEY sent, 'received' for messages from others.",
+                    },
+                },
+            },
+        },
+    },
+]
+
+
+# --- Tool definitions (Spotify) ---------------------------------------------
+SPOTIFY_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "spotify_top_tracks",
+            "description": "Get the user's top tracks on Spotify for a given time range. Use this when recommending music based on what they already love, or when they ask about their music taste.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "time_range": {
+                        "type": "string",
+                        "enum": ["short_term", "medium_term", "long_term"],
+                        "description": "short_term = last 4 weeks, medium_term = ~6 months, long_term = years",
+                    },
+                    "limit": {"type": "integer", "minimum": 1, "maximum": 20, "default": 10},
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "spotify_top_artists",
+            "description": "Get the user's top artists (with genres) on Spotify. Useful for understanding their taste or seeding recommendations.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "time_range": {
+                        "type": "string",
+                        "enum": ["short_term", "medium_term", "long_term"],
+                    },
+                    "limit": {"type": "integer", "minimum": 1, "maximum": 20, "default": 10},
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "spotify_recent_tracks",
+            "description": "Get the user's recently played tracks on Spotify. Good for 'what have I been listening to this week' questions.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "limit": {"type": "integer", "minimum": 1, "maximum": 50, "default": 15},
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "spotify_taste_profile",
+            "description": "Get a summary of the user's Spotify taste: top genres, top artists, and audio-feature averages (valence, energy, danceability, tempo, acousticness). Use this before making recommendations so you know their vibe.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "spotify_recommend_tracks",
+            "description": "Ask Spotify for track recommendations seeded from the user's taste. NOTE: Spotify deprecated this endpoint for new apps — it may return an empty list with an 'error' field. If it does, fall back to recommending tracks from your own knowledge based on their taste profile, then optionally use spotify_search_track to resolve real Spotify URLs.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "target_valence": {"type": "number", "description": "0.0 (sad) to 1.0 (happy)"},
+                    "target_energy":  {"type": "number", "description": "0.0 (calm) to 1.0 (intense)"},
+                    "target_danceability": {"type": "number"},
+                    "limit": {"type": "integer", "minimum": 1, "maximum": 10, "default": 5},
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "spotify_search_track",
+            "description": "Search Spotify for a track by name (and optionally artist). Use this to resolve a real Spotify URL for a track you just recommended from your own knowledge.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "e.g. 'Holocene Bon Iver'"},
+                    "limit": {"type": "integer", "minimum": 1, "maximum": 10, "default": 3},
+                },
+                "required": ["query"],
+            },
+        },
+    },
+]
+
+
+def _execute_tool(user_id: str, name: str, args: dict):
+    """Dispatch an LLM tool call. Returns JSON-serializable result."""
+    try:
+        if name.startswith("spotify_"):
+            from services.integrations import spotify as sp
+            if name == "spotify_top_tracks":
+                return sp.get_top_tracks(
+                    user_id,
+                    args.get("time_range", "medium_term"),
+                    args.get("limit", 10),
+                )
+            if name == "spotify_top_artists":
+                return sp.get_top_artists(
+                    user_id,
+                    args.get("time_range", "medium_term"),
+                    args.get("limit", 10),
+                )
+            if name == "spotify_recent_tracks":
+                return sp.get_recent_tracks(user_id, args.get("limit", 15))
+            if name == "spotify_taste_profile":
+                return sp.get_taste_profile(user_id)
+            if name == "spotify_recommend_tracks":
+                return sp.recommend_tracks(
+                    user_id,
+                    target_valence=args.get("target_valence"),
+                    target_energy=args.get("target_energy"),
+                    target_danceability=args.get("target_danceability"),
+                    limit=args.get("limit", 5),
+                )
+            if name == "spotify_search_track":
+                return sp.search_track(
+                    user_id, args.get("query", ""), args.get("limit", 3)
+                )
+        if name.startswith("whatsapp_"):
+            from services.integrations import whatsapp as wa
+            if name == "whatsapp_send":
+                return wa.send_message(args.get("to", ""), args.get("message", ""))
+            if name == "whatsapp_recent_chats":
+                return wa.list_recent_chats(args.get("limit", 15))
+            if name == "whatsapp_recent_messages":
+                return wa.recent_messages(args.get("limit", 10), args.get("only"))
+        return {"error": f"unknown tool: {name}"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def chat_with_twin(
+    user_id: str,
+    messages: list,
+    mode: str,
+    personality_context: str,
+    vocabulary_style: str,
+) -> str:
+    from services.database_service import get_integration
+
     system_prompt = build_twin_system_prompt(personality_context, vocabulary_style, mode)
+
+    # Assemble the tool set based on which integrations the user has connected.
+    tools = []
+    tool_note = ""
+    if get_integration(user_id, "spotify"):
+        tools.extend(SPOTIFY_TOOLS)
+        tool_note += (
+            "\n\nYou have live access to the user's Spotify via tool calls. "
+            "When they ask about their music taste, what they've been listening to, or want "
+            "song recommendations, CALL the relevant spotify_* tools rather than guessing. "
+            "For recommendations: prefer spotify_taste_profile first, then reason about what "
+            "tracks fit. If spotify_recommend_tracks returns an error, just list songs from "
+            "your own knowledge that match their taste — and optionally call spotify_search_track "
+            "to attach real URLs. Only recommend 3-5 tracks at a time; keep it tight."
+        )
+
+    # Lazy-register WA if the bridge is up but the user hasn't run /sync yet,
+    # so tools become available as soon as they scan the QR.
+    from services.integrations import whatsapp as _wa_svc
+    wa_registered = _wa_svc.ensure_registered(user_id)
+
+    if wa_registered:
+        tools.extend(WHATSAPP_TOOLS)
+        tool_note += (
+            "\n\nYou can send WhatsApp messages on the user's behalf via the whatsapp_send tool. "
+            "ALWAYS follow this protocol before sending: (1) confirm the recipient — echo back "
+            "the number or contact in plain text, (2) show the user the exact wording you'd send, "
+            "in their voice, (3) wait for them to say go/send/confirm in the next message before "
+            "calling whatsapp_send. Never send unprompted. Never invent recipients. "
+            "If the user already gave you both a clear recipient and a ready-to-send line in the "
+            "same message (e.g. 'text 919876543210 saying hey bro'), you may send immediately."
+        )
+
+    if tool_note:
+        system_prompt += tool_note
 
     chat_messages = [{"role": "system", "content": system_prompt}]
     for msg in messages:
         chat_messages.append({"role": msg["role"], "content": msg["content"]})
 
-    # Letter mode needs more room for sign-off; everything else stays tight.
-    max_tokens = 800 if mode == "future_self" else 300
-    response = client.chat.completions.create(
+    max_tokens = 800 if mode == "future_self" else 400
+
+    # Up to 4 rounds of tool calls before we bail and force a final answer.
+    for _ in range(4):
+        kwargs = {
+            "model": Config.OPENAI_CHAT_MODEL,
+            "messages": chat_messages,
+            "max_tokens": max_tokens,
+            "temperature": 0.8,
+        }
+        if tools:
+            kwargs["tools"] = tools
+            kwargs["tool_choice"] = "auto"
+
+        response = client.chat.completions.create(**kwargs)
+        msg = response.choices[0].message
+
+        if not getattr(msg, "tool_calls", None):
+            return msg.content or ""
+
+        # Record the assistant's tool-call turn, then execute each tool and
+        # append its result back into the conversation for the next round.
+        chat_messages.append({
+            "role": "assistant",
+            "content": msg.content or "",
+            "tool_calls": [
+                {
+                    "id": tc.id,
+                    "type": "function",
+                    "function": {
+                        "name": tc.function.name,
+                        "arguments": tc.function.arguments or "{}",
+                    },
+                }
+                for tc in msg.tool_calls
+            ],
+        })
+
+        for tc in msg.tool_calls:
+            try:
+                args = json.loads(tc.function.arguments or "{}")
+            except json.JSONDecodeError:
+                args = {}
+            result = _execute_tool(user_id, tc.function.name, args)
+            # Keep tool output compact — LLMs choke on huge payloads.
+            payload = json.dumps(result, default=str)
+            if len(payload) > 6000:
+                payload = payload[:6000] + '..."]'
+            chat_messages.append({
+                "role": "tool",
+                "tool_call_id": tc.id,
+                "name": tc.function.name,
+                "content": payload,
+            })
+
+    # Exhausted the tool-call budget; force a text-only final answer.
+    final = client.chat.completions.create(
         model=Config.OPENAI_CHAT_MODEL,
         messages=chat_messages,
         max_tokens=max_tokens,
         temperature=0.8,
     )
-    return response.choices[0].message.content
+    return final.choices[0].message.content or ""
 
 
 PERSONA_PROMPTS = {

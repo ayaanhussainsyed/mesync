@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MeSync — talk to the version of you that knows your patterns</title>
+<meta name="description" content="MeSync is a personal digital twin. Journal, connect your apps, and chat with yourself — through different personas, from your future self, or as a devil's advocate." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0a0a0a; --fg: #e8e4db; --fg-soft: #c9c4b8; --muted: #6b665d;
+    --accent: #c9a96a; --accent-soft: #a88a4f;
+    --card: #141414; --border: #1c1c1c; --danger: #c96a6a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--bg); color: var(--fg); font-family: 'Lora', serif;
+    font-weight: 400; min-height: 100vh; overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* --- Decor --- */
+  body::before {
+    content: ''; position: fixed; inset: -10%;
+    z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(ellipse 700px 600px at 12% 18%, rgba(201,169,106,0.14) 0%, transparent 65%),
+      radial-gradient(ellipse 800px 700px at 88% 82%, rgba(201,169,106,0.10) 0%, transparent 65%);
+    animation: decor-drift 22s ease-in-out infinite alternate;
+  }
+  body::after {
+    content: ''; position: fixed; inset: 0;
+    z-index: 0; pointer-events: none;
+    background-image:
+      radial-gradient(rgba(201,169,106,0.08) 1px, transparent 1px),
+      linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.5) 100%);
+    background-size: 28px 28px, 100% 100%;
+    mask-image: radial-gradient(ellipse at center, black 20%, rgba(0,0,0,0.3) 70%, transparent 100%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 20%, rgba(0,0,0,0.3) 70%, transparent 100%);
+    opacity: 0.85;
+  }
+  @keyframes decor-drift {
+    from { transform: translate(0, 0) scale(1); }
+    to   { transform: translate(-30px, -20px) scale(1.04); }
+  }
+  .orb {
+    position: fixed; border-radius: 50%;
+    filter: blur(80px); pointer-events: none; z-index: 0; opacity: 0.55;
+  }
+  .orb.o1 {
+    top: -140px; left: -120px; width: 480px; height: 480px;
+    background: radial-gradient(circle, rgba(201,169,106,0.38) 0%, transparent 70%);
+  }
+  .orb.o2 {
+    bottom: -180px; right: -140px; width: 560px; height: 560px;
+    background: radial-gradient(circle, rgba(201,169,106,0.22) 0%, transparent 70%);
+  }
+
+  header.site-nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 36px; height: 70px;
+    background: rgba(10,10,10,0.55);
+    backdrop-filter: blur(12px) saturate(120%);
+    -webkit-backdrop-filter: blur(12px) saturate(120%);
+    border-bottom: 1px solid var(--border);
+  }
+  .brand {
+    display: flex; align-items: center; gap: 12px;
+    text-decoration: none; color: inherit;
+  }
+  .brand-icon { width: 30px; height: 30px; color: var(--accent); }
+  .brand-name { font-size: 13px; letter-spacing: 3.5px; color: var(--muted); text-transform: uppercase; }
+
+  .nav-links { display: flex; gap: 8px; align-items: center; }
+  .nav-links a {
+    color: var(--muted); text-decoration: none;
+    font-size: 13px; padding: 8px 14px; border-radius: 6px;
+    transition: color 0.15s;
+    letter-spacing: 0.3px;
+  }
+  .nav-links a:hover { color: var(--fg); }
+  .nav-links a.cta {
+    color: var(--accent);
+    border: 1px solid rgba(201,169,106,0.35);
+    background: rgba(201,169,106,0.06);
+  }
+  .nav-links a.cta:hover { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+  main { position: relative; z-index: 10; }
+
+  /* --- Hero --- */
+  .hero {
+    min-height: 100vh;
+    padding: 140px 24px 80px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center;
+  }
+  .hero-kicker {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--accent); font-style: italic; margin-bottom: 22px;
+    padding: 7px 16px; border: 1px solid rgba(201,169,106,0.25);
+    border-radius: 999px; background: rgba(201,169,106,0.05);
+  }
+  .hero-kicker::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent); box-shadow: 0 0 10px var(--accent);
+    animation: pulse-dot 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.85); }
+  }
+  .hero-title {
+    font-size: clamp(36px, 7vw, 72px);
+    font-style: italic; color: var(--accent);
+    line-height: 1.05; letter-spacing: -0.02em;
+    max-width: 900px; margin-bottom: 22px;
+    font-weight: 400;
+  }
+  .hero-title em {
+    color: var(--fg); font-style: italic; font-weight: 500;
+  }
+  .hero-sub {
+    color: var(--fg-soft);
+    font-size: clamp(15px, 2vw, 19px);
+    line-height: 1.75; max-width: 640px; margin: 0 auto 36px;
+  }
+  .hero-cta { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 14px 28px; border-radius: 8px;
+    font-family: inherit; font-size: 15px; font-style: italic;
+    text-decoration: none; cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.3px;
+    border: 1px solid transparent;
+  }
+  .btn.primary {
+    background: var(--accent); color: var(--bg);
+    border-color: var(--accent);
+    box-shadow: 0 10px 30px rgba(201,169,106,0.2);
+  }
+  .btn.primary:hover { transform: translateY(-2px); box-shadow: 0 14px 36px rgba(201,169,106,0.3); }
+  .btn.secondary {
+    color: var(--fg-soft);
+    border-color: var(--border);
+    background: rgba(20,20,20,0.6);
+  }
+  .btn.secondary:hover { color: var(--accent); border-color: var(--accent); }
+  .btn svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+  /* --- Quotes / rotating phrases --- */
+  .hero-signature {
+    display: flex; justify-content: center;
+    margin-top: 56px;
+    font-size: 12px; color: var(--muted); font-style: italic;
+    letter-spacing: 1px;
+  }
+  .hero-signature .dot { display: inline-block; margin: 0 10px; opacity: 0.4; }
+
+  /* --- Feature grid --- */
+  .section {
+    padding: 100px 24px;
+    max-width: 1100px; margin: 0 auto;
+  }
+  .section-label {
+    text-align: center;
+    font-size: 11px; letter-spacing: 4px; text-transform: uppercase;
+    color: var(--accent-soft); font-style: italic; margin-bottom: 14px;
+  }
+  .section-title {
+    text-align: center;
+    font-size: clamp(26px, 4vw, 38px);
+    font-style: italic; color: var(--accent);
+    letter-spacing: -0.01em; line-height: 1.1;
+    max-width: 720px; margin: 0 auto 48px;
+  }
+
+  .features {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+  }
+  .feature {
+    background: rgba(20,20,20,0.6);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 26px 24px;
+    transition: border-color 0.2s, transform 0.25s, box-shadow 0.25s;
+  }
+  .feature:hover {
+    border-color: rgba(201,169,106,0.35);
+    transform: translateY(-4px);
+    box-shadow: 0 16px 36px rgba(0,0,0,0.45);
+  }
+  .feature-icon {
+    width: 42px; height: 42px; border-radius: 10px;
+    background: rgba(201,169,106,0.08); border: 1px solid rgba(201,169,106,0.2);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 14px;
+  }
+  .feature-icon svg { width: 20px; height: 20px; stroke: var(--accent); fill: none; stroke-width: 1.6; }
+  .feature-title { font-size: 17px; color: var(--fg); margin-bottom: 8px; font-weight: 500; letter-spacing: 0.1px; }
+  .feature-desc { font-size: 13px; color: var(--muted); line-height: 1.7; }
+
+  /* --- Process / how it works --- */
+  .process {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-top: 40px;
+  }
+  .step {
+    position: relative;
+    padding: 24px 20px;
+    background: rgba(20,20,20,0.45);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+  }
+  .step-num {
+    display: inline-block;
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 1px solid rgba(201,169,106,0.35);
+    background: rgba(201,169,106,0.06);
+    color: var(--accent); font-style: italic;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; margin-bottom: 12px;
+  }
+  .step-title { font-size: 16px; color: var(--fg); margin-bottom: 6px; font-weight: 500; }
+  .step-desc { font-size: 13px; color: var(--muted); line-height: 1.65; }
+
+  /* --- Persona rail --- */
+  .personas {
+    display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;
+    margin-top: 32px;
+  }
+  .persona-chip {
+    padding: 8px 16px; border-radius: 999px;
+    background: rgba(20,20,20,0.55); border: 1px solid var(--border);
+    font-size: 12px; color: var(--fg-soft);
+    letter-spacing: 0.5px; font-style: italic;
+    transition: all 0.15s;
+  }
+  .persona-chip:hover { border-color: rgba(201,169,106,0.35); color: var(--accent); }
+
+  /* --- Big CTA --- */
+  .cta-block {
+    text-align: center;
+    padding: 80px 24px 100px;
+    max-width: 760px; margin: 0 auto;
+  }
+  .cta-title {
+    font-size: clamp(28px, 4.5vw, 42px);
+    font-style: italic; color: var(--accent);
+    line-height: 1.15; letter-spacing: -0.01em;
+    margin-bottom: 16px;
+  }
+  .cta-sub { color: var(--fg-soft); font-size: 15px; line-height: 1.7; margin-bottom: 28px; }
+
+  footer {
+    padding: 30px 24px 40px;
+    text-align: center; position: relative; z-index: 10;
+    border-top: 1px solid var(--border);
+    background: rgba(10,10,10,0.5);
+  }
+  footer p { font-size: 11px; color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; font-style: italic; }
+
+  @media (max-width: 900px) {
+    header.site-nav { padding: 14px 18px; height: 62px; }
+    .brand-name { display: none; }
+    .section { padding: 70px 18px; }
+    .features, .process { grid-template-columns: 1fr; }
+    .hero { padding: 110px 18px 60px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="orb o1" aria-hidden="true"></div>
+<div class="orb o2" aria-hidden="true"></div>
+
+<header class="site-nav">
+  <a href="/" class="brand">
+    <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <circle cx="12" cy="12" r="4"/>
+      <path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
+    </svg>
+    <span class="brand-name">MeSync</span>
+  </a>
+  <nav class="nav-links" aria-label="Primary">
+    <a href="#how">How it works</a>
+    <a href="#features">Features</a>
+    {% if is_logged_in %}
+      <a href="/logout">Sign out</a>
+      <a href="/dashboard" class="cta">Open dashboard</a>
+    {% else %}
+      <a href="/login">Sign in</a>
+      <a href="/sign-up" class="cta">Get started</a>
+    {% endif %}
+  </nav>
+</header>
+
+<main>
+  <!-- HERO -->
+  <section class="hero">
+    <span class="hero-kicker">A personal digital twin</span>
+    <h1 class="hero-title">
+      Talk to the <em>version of you</em><br/>
+      that knows your patterns.
+    </h1>
+    <p class="hero-sub">
+      MeSync learns from your journals, your voice, and the apps you already use — then lets you
+      chat with yourself. Past self. Future self. Professional self. The one that argues back.
+    </p>
+    <div class="hero-cta">
+      {% if is_logged_in %}
+      <a href="/dashboard" class="btn primary">
+        Open your dashboard
+        <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </a>
+      <a href="/chat" class="btn secondary">Talk to your twin</a>
+      {% else %}
+      <a href="/sign-up" class="btn primary">
+        Get started — it's free
+        <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </a>
+      <a href="#how" class="btn secondary">See how it works</a>
+      {% endif %}
+    </div>
+    <div class="hero-signature">
+      grounded in your memories<span class="dot">·</span>honest to your voice<span class="dot">·</span>private by default
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="section" id="how">
+    <div class="section-label">How it works</div>
+    <h2 class="section-title">Three ingredients. One mirror of you.</h2>
+
+    <div class="process">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-title">Take the onboarding</div>
+        <div class="step-desc">A short quiz scores your Big Five personality traits. The twin starts with a baseline of who you are — not a blank LLM.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-title">Journal &amp; connect your apps</div>
+        <div class="step-desc">Write entries or record voice notes. Plug in Spotify, GitHub, Gmail, WhatsApp — MeSync turns everything into embedded memory.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-title">Chat across personas</div>
+        <div class="step-desc">Talk to your future self over letters. Stress-test a decision with a devil's advocate. Vent to the angry you. It's still <em>you</em>, just through different masks.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="section" id="features">
+    <div class="section-label">Features</div>
+    <h2 class="section-title">Everything a mirror of you should do.</h2>
+
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>
+        <div class="feature-title">Chat with eight personas</div>
+        <div class="feature-desc">Default, Future Self (letters), Professional, Angry, Sad, Emo, Hype, Chill, Devil's Advocate. Pick one per thread.</div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+        <div class="feature-title">Daily journal (text + voice)</div>
+        <div class="feature-desc">An open-book UI with a compose page and an archive page. Voice notes transcribed, moods tagged, everything fed back into memory.</div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><polyline points="3 7 12 13 21 7"/></svg></div>
+        <div class="feature-title">Letters from later</div>
+        <div class="feature-desc">Every few days your future self drops a letter in your inbox — unprompted, in letter form, about something real from your life.</div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="12" cy="18" r="3"/><line x1="8.5" y1="7.5" x2="10.5" y2="15.5"/><line x1="15.5" y1="7.5" x2="13.5" y2="15.5"/></svg></div>
+        <div class="feature-title">Memory graph</div>
+        <div class="feature-desc">The people, places, feelings, and goals in your words — extracted as a navigable semantic graph. Dragable, zoomable, yours.</div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon"><svg viewBox="0 0 24 24"><polyline points="3 18 8 12 13 16 21 6"/></svg></div>
+        <div class="feature-title">Drift meter</div>
+        <div class="feature-desc">Mood distribution, writing cadence, trait shifts. See how you've moved over time — not what you feel, what's actually changed.</div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
+        <div class="feature-title">Decision simulator</div>
+        <div class="feature-desc">Describe what you're torn between. Your twin branches three futures — 3 months, 1 year, 3 years — rooted in what it knows about you.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PERSONAS RAIL -->
+  <section class="section" style="padding-top: 40px; padding-bottom: 40px;">
+    <div class="section-label">Pick a mask</div>
+    <h2 class="section-title" style="margin-bottom: 20px;">Each persona is still you — a different facet.</h2>
+    <div class="personas">
+      <span class="persona-chip">Default</span>
+      <span class="persona-chip">Future Self</span>
+      <span class="persona-chip">Professional</span>
+      <span class="persona-chip">Angry</span>
+      <span class="persona-chip">Sad</span>
+      <span class="persona-chip">Emo</span>
+      <span class="persona-chip">Hype</span>
+      <span class="persona-chip">Chill</span>
+      <span class="persona-chip">Devil's Advocate</span>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-block">
+    <h2 class="cta-title">The more it knows, the more like you it gets.</h2>
+    <p class="cta-sub">
+      Start with a short onboarding and one journal entry. It gets richer every day you use it.
+    </p>
+    <div class="hero-cta" style="justify-content: center;">
+      {% if is_logged_in %}
+      <a href="/dashboard" class="btn primary">
+        Open dashboard
+        <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </a>
+      <a href="/journal" class="btn secondary">Write a journal entry</a>
+      {% else %}
+      <a href="/sign-up" class="btn primary">
+        Create your twin
+        <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </a>
+      <a href="/login" class="btn secondary">I already have an account</a>
+      {% endif %}
+    </div>
+  </section>
+</main>
+
+<footer>
+  <p>MeSync · your twin, in your words</p>
+</footer>
+
+</body>
+</html>

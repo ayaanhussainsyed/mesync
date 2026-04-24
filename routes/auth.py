@@ -5,7 +5,18 @@ from werkzeug.security import generate_password_hash, check_password_hash
 auth_bp = Blueprint("auth", __name__)
 
 
-@auth_bp.route("/", methods=["GET", "POST"])
+@auth_bp.route("/")
+def landing():
+    # Always show the landing page. Logged-in users get CTA buttons that point
+    # into the app instead of to sign-up/login.
+    return render_template(
+        "landing.html",
+        is_logged_in=("user_id" in session),
+        username=session.get("username"),
+    )
+
+
+@auth_bp.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
         username = request.form.get("username", "").strip()

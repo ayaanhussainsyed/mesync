@@ -34,5 +34,12 @@ class Config:
     GITHUB_CLIENT_SECRET = os.environ.get("GITHUB_CLIENT_SECRET", "")
     GITHUB_SCOPES = "read:user"
 
+    GMAIL_CLIENT_ID = os.environ.get("GMAIL_CLIENT_ID", "")
+    GMAIL_CLIENT_SECRET = os.environ.get("GMAIL_CLIENT_SECRET", "")
+    GMAIL_SCOPES = (
+        "https://www.googleapis.com/auth/gmail.readonly "
+        "https://www.googleapis.com/auth/userinfo.email"
+    )
+
     # Node sidecar hosting whatsapp-web.js (see whatsapp-bridge/README.md)
     WHATSAPP_BRIDGE_URL = os.environ.get("WHATSAPP_BRIDGE_URL", "http://127.0.0.1:3011")

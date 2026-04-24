@@ -10,14 +10,30 @@
 <style>
   :root {
     --bg: #0a0a0a; --fg: #e8e4db; --fg-soft: #c9c4b8; --muted: #6b665d;
-    --accent: #c9a96a; --card: #141414; --border: #1c1c1c;
+    --accent: #c9a96a; --accent-soft: #a88a4f;
+    --card: #141414; --border: #1c1c1c; --danger: #c96a6a;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
   html, body {
     background: var(--bg); color: var(--fg); font-family: 'Lora', serif;
     font-weight: 400; min-height: 100vh; overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
   }
+  body::before {
+    content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background-image: radial-gradient(rgba(201,169,106,0.06) 1px, transparent 1px);
+    background-size: 32px 32px;
+    mask-image: radial-gradient(ellipse at center, black 25%, transparent 85%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 25%, transparent 85%);
+  }
+  body::after {
+    content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(ellipse 500px 400px at 15% 85%, rgba(201,169,106,0.08), transparent 70%),
+      radial-gradient(ellipse 500px 400px at 85% 15%, rgba(201,169,106,0.06), transparent 70%);
+  }
+  main { position: relative; z-index: 10; }
 
   header {
     position: fixed; top: 0; left: 0; right: 0; z-index: 100;
@@ -52,19 +68,33 @@
   nav a.btn-logout:hover { color: #c96a6a; }
 
   main {
-    padding: 88px 40px 40px;
+    padding: 100px 32px 48px;
     min-height: 100vh;
+    max-width: 1200px; margin: 0 auto;
   }
 
-  .page-header { max-width: 1100px; margin: 0 auto 20px; display: flex; align-items: baseline; gap: 20px; }
-  .page-title { font-size: 22px; color: var(--fg-soft); font-weight: 400; }
-  .page-subtitle { color: var(--muted); font-size: 14px; font-style: italic; }
-  .graph-summary { color: var(--muted); font-size: 13px; max-width: 1100px; margin: 0 auto 16px; }
+  .page-header {
+    max-width: 1100px; margin: 0 auto 10px;
+    display: flex; align-items: baseline; gap: 20px; flex-wrap: wrap;
+  }
+  .page-title {
+    font-size: 30px; font-style: italic; color: var(--accent);
+    font-weight: 400; letter-spacing: -0.01em; line-height: 1.1;
+  }
+  .page-subtitle { color: var(--muted); font-size: 13px; font-style: italic; }
+  .graph-summary {
+    color: var(--fg-soft); font-size: 13px; max-width: 1100px;
+    margin: 0 auto 16px; font-style: italic;
+  }
 
   .graph-container {
     width: 100%; max-width: 1100px; height: 65vh;
-    margin: 0 auto; background: var(--card); border: 1px solid var(--border);
-    border-radius: 8px; overflow: hidden; position: relative;
+    margin: 0 auto;
+    background: rgba(20,20,20,0.6);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--border);
+    border-radius: 14px; overflow: hidden; position: relative;
+    box-shadow: 0 18px 40px rgba(0,0,0,0.45);
   }
   .graph-empty {
     display: flex; align-items: center; justify-content: center;
@@ -73,22 +103,32 @@
   }
 
   .tooltip {
-    position: fixed; background: rgba(12,12,12,0.97); border: 1px solid #2a2a2a;
-    color: var(--fg); padding: 12px 16px; border-radius: 8px;
+    position: fixed;
+    background: rgba(18,18,18,0.96); border: 1px solid rgba(201,169,106,0.25);
+    color: var(--fg); padding: 12px 16px; border-radius: 10px;
     font-size: 12px; max-width: 240px; pointer-events: none;
     opacity: 0; transition: opacity 0.15s; z-index: 200;
     line-height: 1.6;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.6);
   }
   .tooltip .tt-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 6px; }
   .tooltip .tt-type { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 10px; margin-bottom: 4px; }
   .tooltip .tt-text { color: var(--fg-soft); font-size: 12px; }
 
   .legend {
-    display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap;
-    max-width: 1100px; margin-left: auto; margin-right: auto;
+    display: flex; gap: 10px; margin: 14px auto 0; flex-wrap: wrap;
+    max-width: 1100px; justify-content: flex-start;
   }
-  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); text-transform: capitalize; }
-  .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .legend-item {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1.5px;
+    padding: 6px 12px;
+    background: rgba(20,20,20,0.5);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+  }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 6px currentColor; }
   .legend-dot.person { background: #c9a96a; }
   .legend-dot.emotion { background: #c96a9a; }
   .legend-dot.concept { background: #6a9ac9; }
@@ -97,15 +137,18 @@
   .legend-dot.location { background: #9a6ac9; }
 
   .graph-controls {
-    position: absolute; bottom: 16px; right: 16px;
-    display: flex; gap: 6px;
+    position: absolute; bottom: 14px; right: 14px;
+    display: flex; gap: 4px; padding: 4px;
+    background: rgba(10,10,10,0.65); backdrop-filter: blur(10px);
+    border: 1px solid var(--border); border-radius: 8px;
   }
   .graph-btn {
-    background: var(--card); border: 1px solid var(--border); color: var(--muted);
-    padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;
-    font-family: inherit; transition: all 0.2s;
+    background: transparent; border: none; color: var(--muted);
+    padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;
+    font-family: inherit; transition: all 0.15s;
+    letter-spacing: 0.5px;
   }
-  .graph-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .graph-btn:hover { color: var(--accent); background: rgba(201,169,106,0.08); }
 
   @media (max-width: 768px) {
     header { padding: 0 20px; }
@@ -121,56 +164,8 @@
 </style>
 </head>
 <body>
-<header>
-  <a href="/dashboard" class="brand">
-    <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-      <circle cx="12" cy="12" r="4"/>
-      <path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
-    </svg>
-    <span class="brand-name">MeSync</span>
-  </a>
-  <nav role="navigation" aria-label="Main navigation">
-    <a href="/chat" aria-label="Chat">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-      </svg>
-      <span>Chat</span>
-    </a>
-    <a href="/journal" aria-label="Journal">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
-        <polyline points="14 2 14 8 20 8"/>
-        <line x1="16" y1="13" x2="8" y2="13"/>
-        <line x1="16" y1="17" x2="8" y2="17"/>
-        <polyline points="10 9 9 9 8 9"/>
-      </svg>
-      <span>Journal</span>
-    </a>
-    <a href="/graph" aria-current="page" aria-label="Graph">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/>
-        <circle cx="12" cy="18" r="3"/>
-        <line x1="8.5" y1="7.5" x2="10.5" y2="15.5"/>
-        <line x1="15.5" y1="7.5" x2="13.5" y2="15.5"/>
-      </svg>
-      <span>Graph</span>
-    </a>
-    <a href="/decisions" aria-label="Decisions">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <circle cx="12" cy="12" r="10"/>
-        <path d="M12 6v6l4 2"/>
-      </svg>
-      <span>Decisions</span>
-    </a>
-    <a href="/logout" class="btn-logout" aria-label="Logout">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
-        <polyline points="16 17 21 12 16 7"/>
-        <line x1="21" y1="12" x2="9" y2="12"/>
-      </svg>
-    </a>
-  </nav>
-</header>
+{% set active = "graph" %}
+{% include "_header.html" %}
 
 <main>
   <div class="page-header">

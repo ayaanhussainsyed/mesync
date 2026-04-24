@@ -10,14 +10,30 @@
 <style>
   :root {
     --bg: #0a0a0a; --fg: #e8e4db; --fg-soft: #c9c4b8; --muted: #6b665d;
-    --accent: #c9a96a; --card: #141414; --border: #1c1c1c;
+    --accent: #c9a96a; --accent-soft: #a88a4f;
+    --card: #141414; --border: #1c1c1c; --danger: #c96a6a;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
   html, body {
     background: var(--bg); color: var(--fg); font-family: 'Lora', serif;
     font-weight: 400; min-height: 100vh; overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
   }
+  body::before {
+    content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background-image: radial-gradient(rgba(201,169,106,0.06) 1px, transparent 1px);
+    background-size: 32px 32px;
+    mask-image: radial-gradient(ellipse at center, black 25%, transparent 85%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 25%, transparent 85%);
+  }
+  body::after {
+    content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(ellipse 500px 400px at 15% 85%, rgba(201,169,106,0.08), transparent 70%),
+      radial-gradient(ellipse 500px 400px at 85% 15%, rgba(201,169,106,0.06), transparent 70%);
+  }
+  main { position: relative; z-index: 10; }
 
   header {
     position: fixed; top: 0; left: 0; right: 0; z-index: 100;
@@ -52,41 +68,75 @@
   nav a.btn-logout:hover { color: #c96a6a; }
 
   main {
-    padding: 88px 40px 60px;
-    max-width: 1100px; margin: 0 auto;
+    padding: 100px 32px 60px;
+    max-width: 1160px; margin: 0 auto;
   }
 
-  .page-header { margin-bottom: 20px; display: flex; align-items: baseline; gap: 20px; }
-  .page-title { font-size: 22px; color: var(--fg-soft); font-weight: 400; }
-  .page-subtitle { color: var(--muted); font-size: 14px; font-style: italic; }
+  .page-header { margin-bottom: 24px; text-align: center; }
+  .page-title {
+    font-size: 30px; font-style: italic; color: var(--accent);
+    font-weight: 400; letter-spacing: -0.01em;
+  }
+  .page-subtitle {
+    color: var(--muted); font-size: 13px; font-style: italic;
+    margin-top: 6px; max-width: 520px; margin-left: auto; margin-right: auto;
+  }
 
-  .input-row { display: flex; gap: 12px; margin-bottom: 20px; align-items: flex-start; }
-  .input { flex: 1; background: var(--card); border: 1px solid var(--border); color: var(--fg); padding: 12px 16px; border-radius: 6px; font-family: inherit; font-size: 15px; outline: none; transition: border-color 0.2s; }
-  .input:focus { border-color: var(--accent); }
-  .input::placeholder { color: #454036; font-style: italic; }
-  .btn { background: transparent; color: var(--accent); border: 1px solid var(--accent); padding: 12px 22px; border-radius: 6px; font-family: inherit; font-size: 14px; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
-  .btn:hover { background: var(--accent); color: var(--bg); }
+  .input-row {
+    display: flex; gap: 10px; margin-bottom: 16px; align-items: stretch;
+    padding: 14px 16px;
+    background: rgba(20,20,20,0.62);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--border); border-radius: 12px;
+    transition: border-color 0.2s;
+  }
+  .input-row:focus-within { border-color: rgba(201,169,106,0.35); }
+  .input {
+    flex: 1; background: transparent; border: none;
+    color: var(--fg); padding: 8px 10px; border-radius: 6px;
+    font-family: inherit; font-size: 15px; outline: none;
+  }
+  .input::placeholder { color: var(--muted); font-style: italic; }
+  .btn {
+    background: rgba(201,169,106,0.1); color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 10px 20px; border-radius: 8px;
+    font-family: inherit; font-size: 13px; cursor: pointer;
+    transition: all 0.15s; white-space: nowrap; letter-spacing: 0.5px;
+  }
+  .btn:hover:not(:disabled) { background: var(--accent); color: var(--bg); }
   .btn:disabled { opacity: 0.35; cursor: not-allowed; }
   .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .status-msg { color: var(--muted); font-style: italic; font-size: 13px; margin-bottom: 20px; min-height: 20px; }
+  .status-msg {
+    color: var(--muted); font-style: italic; font-size: 12px;
+    margin-bottom: 14px; min-height: 18px;
+    text-align: center;
+  }
 
   .voice-btn {
-    background: var(--card); border: 1px solid var(--border);
-    color: var(--muted); padding: 0; width: 48px; height: 48px;
-    border-radius: 6px; cursor: pointer; display: flex;
+    background: transparent; border: 1px solid var(--border);
+    color: var(--muted); padding: 0; width: 42px; height: 42px;
+    border-radius: 8px; cursor: pointer; display: flex;
     align-items: center; justify-content: center;
-    transition: all 0.2s; flex-shrink: 0; align-self: flex-end;
+    transition: all 0.15s; flex-shrink: 0; align-self: stretch;
   }
-  .voice-btn svg { width: 18px; height: 18px; }
+  .voice-btn svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; }
   .voice-btn:hover { border-color: var(--accent); color: var(--accent); }
-  .voice-btn.recording { border-color: #c96a6a; color: #c96a6a; animation: pulse 1s ease infinite; }
+  .voice-btn.recording {
+    border-color: var(--danger); color: var(--danger);
+    background: rgba(201,106,106,0.06);
+    animation: pulse 1.1s ease-in-out infinite;
+  }
   .voice-btn:disabled { opacity: 0.35; cursor: not-allowed; }
-  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
 
   .graph-container {
     width: 100%; height: 65vh;
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: 8px; overflow: hidden; position: relative;
+    background: rgba(20,20,20,0.6);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--border);
+    border-radius: 14px; overflow: hidden; position: relative;
+    box-shadow: 0 18px 40px rgba(0,0,0,0.45);
   }
   .graph-empty {
     display: flex; align-items: center; justify-content: center;
@@ -95,11 +145,13 @@
   }
 
   .tooltip {
-    position: fixed; background: rgba(12,12,12,0.97); border: 1px solid #2a2a2a;
-    color: var(--fg); padding: 12px 16px; border-radius: 8px;
-    font-size: 12px; max-width: 280px; pointer-events: none;
+    position: fixed;
+    background: rgba(18,18,18,0.96); border: 1px solid rgba(201,169,106,0.25);
+    color: var(--fg); padding: 14px 16px; border-radius: 10px;
+    font-size: 12px; max-width: 320px; pointer-events: none;
     opacity: 0; transition: opacity 0.12s; z-index: 200;
-    line-height: 1.7;
+    line-height: 1.65;
+    box-shadow: 0 14px 32px rgba(0,0,0,0.6);
   }
   .tt-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #1e1e1e; gap: 12px; }
   .tt-label { font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); flex: 1; }
@@ -109,20 +161,31 @@
   .tt-milestones div { padding: 3px 0; border-bottom: 1px solid #1c1c1c; }
   .tt-milestones div:last-child { border-bottom: none; }
 
-  .summary-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 20px 24px; margin-top: 24px; }
-  .summary-label { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; font-style: italic; }
-  .summary-text { color: var(--fg-soft); font-size: 15px; line-height: 1.75; }
+  .summary-card {
+    background: rgba(20,20,20,0.62);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--border);
+    border-radius: 14px; padding: 22px 26px; margin-top: 20px;
+  }
+  .summary-label {
+    font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 10px; font-style: italic;
+  }
+  .summary-text { color: var(--fg-soft); font-size: 15px; line-height: 1.8; }
 
   .graph-controls {
-    position: absolute; bottom: 16px; right: 16px;
-    display: flex; gap: 6px;
+    position: absolute; bottom: 14px; right: 14px;
+    display: flex; gap: 4px; padding: 4px;
+    background: rgba(10,10,10,0.65); backdrop-filter: blur(10px);
+    border: 1px solid var(--border); border-radius: 8px;
   }
   .graph-btn {
-    background: var(--card); border: 1px solid var(--border); color: var(--muted);
-    padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;
-    font-family: inherit; transition: all 0.2s;
+    background: transparent; border: none; color: var(--muted);
+    padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;
+    font-family: inherit; transition: all 0.15s;
+    letter-spacing: 0.5px;
   }
-  .graph-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .graph-btn:hover { color: var(--accent); background: rgba(201,169,106,0.08); }
 
   @media (max-width: 768px) {
     header { padding: 0 20px; }
@@ -137,55 +200,8 @@
 </style>
 </head>
 <body>
-<header>
-  <a href="/dashboard" class="brand">
-    <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-      <circle cx="12" cy="12" r="4"/>
-      <path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
-    </svg>
-    <span class="brand-name">MeSync</span>
-  </a>
-  <nav role="navigation" aria-label="Main navigation">
-    <a href="/chat" aria-label="Chat">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-      </svg>
-      <span>Chat</span>
-    </a>
-    <a href="/journal" aria-label="Journal">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
-        <polyline points="14 2 14 8 20 8"/>
-        <line x1="16" y1="13" x2="8" y2="13"/>
-        <line x1="16" y1="17" x2="8" y2="17"/>
-      </svg>
-      <span>Journal</span>
-    </a>
-    <a href="/graph" aria-label="Graph">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/>
-        <circle cx="12" cy="18" r="3"/>
-        <line x1="8.5" y1="7.5" x2="10.5" y2="15.5"/>
-        <line x1="15.5" y1="7.5" x2="13.5" y2="15.5"/>
-      </svg>
-      <span>Graph</span>
-    </a>
-    <a href="/decisions" aria-current="page" aria-label="Decisions">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <circle cx="12" cy="12" r="10"/>
-        <path d="M12 6v6l4 2"/>
-      </svg>
-      <span>Decisions</span>
-    </a>
-    <a href="/logout" class="btn-logout" aria-label="Logout">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
-        <polyline points="16 17 21 12 16 7"/>
-        <line x1="21" y1="12" x2="9" y2="12"/>
-      </svg>
-    </a>
-  </nav>
-</header>
+{% set active = "decisions" %}
+{% include "_header.html" %}
 
 <main>
   <div class="page-header">

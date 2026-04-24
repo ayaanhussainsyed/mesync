@@ -26,6 +26,12 @@ let qrDataUrl = null;     // cached image-dataurl version of the current QR
 let isReady = false;
 let me = null;
 
+// Ring buffer of every message seen since the bridge started, populated by
+// the `message_create` event (fires for incoming AND outgoing). Persists
+// until the bridge process exits — enough for live chat queries.
+const LIVE_BUFFER_SIZE = 300;
+const liveMessages = []; // newest last
+
 const client = new Client({
   authStrategy: new LocalAuth({ clientId: 'mesync', dataPath: AUTH_DIR }),
   puppeteer: {
@@ -69,6 +75,30 @@ client.on('disconnected', (reason) => {
   me = null;
 });
 
+client.on('message_create', async (m) => {
+  try {
+    const body = m.body || '';
+    if (!body) return;
+    let chatName = null;
+    try {
+      const chat = await m.getChat();
+      chatName = chat.name || (chat.id && chat.id.user) || null;
+    } catch (_) { /* ignore */ }
+    liveMessages.push({
+      body,
+      from_me: !!m.fromMe,
+      author: m.author || null,
+      chat_name: chatName,
+      chat_id: m.from || null,
+      is_group: !!(m.id && m.id.remote && String(m.id.remote).endsWith('@g.us')),
+      timestamp: m.timestamp || Math.floor(Date.now() / 1000),
+    });
+    while (liveMessages.length > LIVE_BUFFER_SIZE) liveMessages.shift();
+  } catch (e) {
+    console.warn('[whatsapp-bridge] live capture error:', e.message || e);
+  }
+});
+
 client.initialize().catch((err) => {
   console.error('[whatsapp-bridge] initialize failed:', err);
 });
@@ -92,9 +122,47 @@ app.get('/status', (req, res) => {
   });
 });
 
+// Live tail of the message-create event buffer, newest first.
+// ?limit=N (default 30, max 300) + optional ?only=sent|received
+app.get('/live', (req, res) => {
+  const limit = Math.max(1, Math.min(LIVE_BUFFER_SIZE, Number(req.query.limit) || 30));
+  const only = String(req.query.only || '').toLowerCase();
+  let list = liveMessages;
+  if (only === 'sent')     list = list.filter(m => m.from_me);
+  if (only === 'received') list = list.filter(m => !m.from_me);
+  res.json({ messages: list.slice(-limit).reverse(), buffer_size: liveMessages.length });
+});
+
 app.get('/qr', (req, res) => {
   // Prefer the data URL so the Flask UI can <img> it directly.
   res.json({ qr: qrDataUrl, raw: currentQr, connected: isReady });
+});
+
+// Send a WhatsApp message on the user's behalf.
+//   body: { "to": "919876543210", "message": "hey!" }
+//         (digits only, country code included. "@c.us" is appended internally.)
+app.post('/send', async (req, res) => {
+  if (!isReady) return res.status(409).json({ ok: false, error: 'not ready' });
+  const { to, message } = req.body || {};
+  if (!to || typeof message !== 'string' || !message.trim()) {
+    return res.status(400).json({ ok: false, error: 'to and message required' });
+  }
+  try {
+    const digits = String(to).replace(/[^0-9]/g, '');
+    if (digits.length < 6) {
+      return res.status(400).json({ ok: false, error: 'invalid number (include country code, digits only)' });
+    }
+    const chatId = `${digits}@c.us`;
+    const result = await client.sendMessage(chatId, message.trim());
+    return res.json({
+      ok: true,
+      to: digits,
+      message_id: result && result.id && result.id._serialized ? result.id._serialized : null,
+    });
+  } catch (e) {
+    const msg = e && e.message ? e.message : String(e);
+    return res.status(500).json({ ok: false, error: msg });
+  }
 });
 
 app.post('/logout', async (req, res) => {

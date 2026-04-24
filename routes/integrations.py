@@ -11,6 +11,7 @@ from services.database_service import (
 from services.integrations import spotify as sp_svc
 from services.integrations import github as gh_svc
 from services.integrations import whatsapp as wa_svc
+from services.integrations import gmail as gm_svc
 
 integrations_bp = Blueprint("integrations", __name__)
 
@@ -44,6 +45,13 @@ def integrations_status():
         return jsonify({"error": "not logged in"}), 401
     all_ = get_all_integrations(session["user_id"])
     wa_state = wa_svc.status()
+    # If the bridge is connected but the user hasn't hit /sync yet, register
+    # the integration now so chat tools + the UI indicator light up instantly.
+    if wa_state.get("connected"):
+        try:
+            wa_svc.ensure_registered(session["user_id"])
+        except Exception as e:
+            print(f"[integrations] ensure_registered failed: {e}")
     return jsonify({
         "spotify": {
             "configured": sp_svc.is_configured(),
@@ -61,6 +69,11 @@ def integrations_status():
             "bridge_error": wa_state.get("error"),
             "me": wa_state.get("me"),
             **(_cleanup_integration(all_.get("whatsapp")) or {}),
+        },
+        "gmail": {
+            "configured": gm_svc.is_configured(),
+            "connected": bool(all_.get("gmail")),
+            **(_cleanup_integration(all_.get("gmail")) or {}),
         },
     })
 
@@ -210,3 +223,57 @@ def whatsapp_logout():
     result = wa_svc.logout()
     clear_integration(session["user_id"], "whatsapp")
     return jsonify(result)
+
+
+# =============== Gmail ===============
+
+@integrations_bp.route("/integrations/gmail/connect")
+def gmail_connect():
+    if not _require_login():
+        return redirect(url_for("auth.login"))
+    if not gm_svc.is_configured():
+        return "Gmail client ID/secret not configured.", 500
+    state = secrets.token_urlsafe(24)
+    session["gmail_oauth_state"] = state
+    return redirect(gm_svc.authorize_url(state))
+
+
+@integrations_bp.route("/integrations/gmail/callback")
+def gmail_callback():
+    if not _require_login():
+        return redirect(url_for("auth.login"))
+    expected = session.pop("gmail_oauth_state", None)
+    if not expected or request.args.get("state") != expected:
+        return "OAuth state mismatch", 400
+    if request.args.get("error"):
+        return f"Gmail auth error: {request.args.get('error')}", 400
+    code = request.args.get("code")
+    if not code:
+        return "Missing code", 400
+    try:
+        tokens = gm_svc.exchange_code(code)
+        profile = gm_svc.get_profile(tokens["access_token"])
+        gm_svc.store_tokens(session["user_id"], tokens, profile)
+    except Exception as e:
+        return f"Gmail connect failed: {e}", 500
+    return redirect(url_for("integrations.integrations_page"))
+
+
+@integrations_bp.route("/integrations/gmail/sync", methods=["POST"])
+def gmail_sync():
+    if not _require_login():
+        return jsonify({"error": "not logged in"}), 401
+    body = request.get_json(silent=True) or {}
+    try:
+        count = gm_svc.sync(session["user_id"], count=int(body.get("count") or 20))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    return jsonify({"ok": True, "ingested": count})
+
+
+@integrations_bp.route("/integrations/gmail/disconnect", methods=["POST"])
+def gmail_disconnect():
+    if not _require_login():
+        return jsonify({"error": "not logged in"}), 401
+    clear_integration(session["user_id"], "gmail")
+    return jsonify({"ok": True})
