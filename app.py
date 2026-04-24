@@ -33,13 +33,6 @@ except Exception as e:
     print("Index warning:", e)
 
 
-# ============================================================
-# CHOICE LABEL MAPS
-# ------------------------------------------------------------
-# For each multi-choice question, map the numeric value back to
-# the natural-language label the user picked. We embed this text,
-# not the number.
-# ============================================================
 
 CHOICE_LABELS = {
     "q1": {
@@ -90,9 +83,6 @@ def render_answer_text(qid: str, question: str, value) -> str:
     return str(value)
 
 
-# ============================================================
-# HELPERS
-# ============================================================
 
 def embed(text: str):
     resp = openai_client.embeddings.create(
@@ -148,9 +138,6 @@ def rag_retrieve(user_id: str, query: str, top_k: int = 5):
     return [{"score": s, **k} for s, k in scored[:top_k]]
 
 
-# ============================================================
-# DIAGNOSTIC
-# ============================================================
 
 @app.route("/test-openai")
 def test_openai():
@@ -166,9 +153,6 @@ def test_openai():
         }), 500
 
 
-# ============================================================
-# AUTH
-# ============================================================
 
 @app.route("/", methods=["GET", "POST"])
 def login():
@@ -242,10 +226,6 @@ def onboarding():
     return render_template("onboarding.html", username=session.get("username"))
 
 
-# ============================================================
-# ONBOARDING SUBMIT — embeds EVERY answer
-# ============================================================
-
 @app.route("/onboarding/submit", methods=["POST"])
 def onboarding_submit():
     if "user_id" not in session:
@@ -268,7 +248,6 @@ def onboarding_submit():
     }
     OPEN_ENDED = {"q6", "q7", "q8"}
 
-    # STEP 1: build the natural-language text for each answer + embed ALL of them
     knowledge_entries = []
     now = datetime.utcnow()
 
@@ -280,12 +259,11 @@ def onboarding_submit():
         else:
             text = render_answer_text(qid, question, value)
 
-        # embed every entry
         try:
             vec = embed(text)
-            print(f"✅ Embedded {qid}: {text[:60]}...")
+            print(f"Embedded {qid}: {text[:60]}...")
         except Exception as e:
-            print(f"❌ Embedding failed for {qid}: {e}")
+            print(f"Embedding failed for {qid}: {e}")
             print(traceback.format_exc())
             return jsonify({
                 "error": f"OpenAI embedding failed: {type(e).__name__}: {e}",
@@ -302,10 +280,9 @@ def onboarding_submit():
             "created_at": now,
         }
         if qid not in OPEN_ENDED:
-            entry["raw_value"] = value  # keep numeric score for big-five math
+            entry["raw_value"] = value 
         knowledge_entries.append(entry)
 
-    # STEP 2: atomic write — big_five + knowledge + onboarding_complete
     try:
         big_five = compute_big_five(answers)
         users_col.update_one(
@@ -325,9 +302,7 @@ def onboarding_submit():
     return jsonify({"ok": True, "redirect": url_for("dashboard")})
 
 
-# ============================================================
-# RAG DEMO
-# ============================================================
+# update this part shlok as you believe
 
 @app.route("/rag/query")
 def rag_query():
