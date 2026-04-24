@@ -22,6 +22,7 @@ from routes.account import account_bp
 from routes.drift import drift_bp
 from routes.letters import letters_bp
 from routes.integrations import integrations_bp
+from routes.behavior_roots import behavior_roots_bp
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(onboarding_bp)
@@ -35,6 +36,7 @@ app.register_blueprint(account_bp)
 app.register_blueprint(drift_bp)
 app.register_blueprint(letters_bp)
 app.register_blueprint(integrations_bp)
+app.register_blueprint(behavior_roots_bp)
 
 
 @app.route("/test-openai")

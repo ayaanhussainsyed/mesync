@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Behavior Roots · MeSync</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0a0a0a; --fg: #e8e4db; --fg-soft: #c9c4b8; --muted: #6b665d;
+    --accent: #c9a96a; --card: #141414; --border: #1c1c1c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--bg); color: var(--fg); font-family: 'Lora', serif;
+    font-weight: 400; min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: -10%;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse 600px 500px at 12% 18%, rgba(201,169,106,0.14) 0%, transparent 65%),
+      radial-gradient(ellipse 700px 600px at 88% 82%, rgba(201,169,106,0.10) 0%, transparent 65%),
+      radial-gradient(ellipse 500px 400px at 50% 110%, rgba(201,169,106,0.08) 0%, transparent 60%);
+    animation: decor-drift 22s ease-in-out infinite alternate;
+  }
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+      radial-gradient(rgba(201,169,106,0.09) 1px, transparent 1px),
+      linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.4) 100%);
+    background-size: 28px 28px, 100% 100%;
+    -webkit-mask-image: radial-gradient(ellipse at center, black 20%, rgba(0,0,0,0.3) 70%, transparent 100%);
+    mask-image: radial-gradient(ellipse at center, black 20%, rgba(0,0,0,0.3) 70%, transparent 100%);
+    opacity: 0.85;
+  }
+  @keyframes decor-drift {
+    from { transform: translate(0, 0) scale(1); }
+    to   { transform: translate(-30px, -20px) scale(1.04); }
+  }
+
+  .bg-orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.55;
+  }
+  .bg-orb.o1 {
+    top: -120px; left: -100px; width: 420px; height: 420px;
+    background: radial-gradient(circle, rgba(201,169,106,0.35) 0%, transparent 70%);
+    animation: orb-float-1 18s ease-in-out infinite alternate;
+  }
+  .bg-orb.o2 {
+    bottom: -140px; right: -120px; width: 520px; height: 520px;
+    background: radial-gradient(circle, rgba(201,169,106,0.22) 0%, transparent 70%);
+    animation: orb-float-2 24s ease-in-out infinite alternate;
+  }
+  .bg-orb.o3 {
+    top: 40%; right: 20%; width: 260px; height: 260px;
+    background: radial-gradient(circle, rgba(201,169,106,0.18) 0%, transparent 70%);
+    animation: orb-float-3 30s ease-in-out infinite alternate;
+  }
+  @keyframes orb-float-1 {
+    from { transform: translate(0, 0); }
+    to   { transform: translate(80px, 60px); }
+  }
+  @keyframes orb-float-2 {
+    from { transform: translate(0, 0); }
+    to   { transform: translate(-70px, -40px); }
+  }
+  @keyframes orb-float-3 {
+    from { transform: translate(0, 0); }
+    to   { transform: translate(-40px, 50px); }
+  }
+
+  header, main { position: relative; z-index: 10; }
+
+  header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 40px; height: 64px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(10, 10, 10, 0.72);
+    backdrop-filter: blur(14px) saturate(120%);
+    -webkit-backdrop-filter: blur(14px) saturate(120%);
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    text-decoration: none;
+  }
+  .brand-icon {
+    width: 28px; height: 28px; color: var(--accent);
+  }
+  .brand-name {
+    font-size: 12px; letter-spacing: 3px; color: var(--muted); text-transform: uppercase;
+  }
+  nav { display: flex; align-items: center; gap: 6px; }
+  nav a {
+    display: flex; align-items: center; gap: 6px;
+    color: var(--muted); text-decoration: none; font-size: 13px;
+    padding: 8px 14px; border-radius: 4px; transition: color 0.2s;
+  }
+  nav a svg { width: 15px; height: 15px; }
+  nav a:hover { color: var(--fg-soft); }
+  nav a[aria-current="page"] { color: var(--accent); }
+  nav a.btn-logout {
+    color: var(--muted); margin-left: 8px;
+    padding: 8px 14px; border-radius: 4px; transition: color 0.2s;
+  }
+  nav a.btn-logout:hover { color: #c96a6a; }
+
+  main {
+    padding: 120px 32px 80px;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+
+  .page-hero {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+  .page-kicker {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--accent); font-style: italic; margin-bottom: 18px;
+    padding: 6px 14px; border: 1px solid rgba(201,169,106,0.25);
+    border-radius: 999px; background: rgba(201,169,106,0.04);
+  }
+  .page-title {
+    font-size: 40px; font-style: italic; color: var(--accent);
+    margin-bottom: 14px; font-weight: 400; letter-spacing: -0.015em;
+    line-height: 1.05;
+  }
+  .page-sub {
+    color: var(--fg-soft); font-size: 15px; line-height: 1.7;
+    max-width: 480px; margin: 0 auto;
+  }
+
+  .input-card {
+    background: rgba(20, 20, 20, 0.65);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px 28px;
+    margin-bottom: 24px;
+  }
+  .input-label {
+    display: block;
+    font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 14px; font-style: italic;
+  }
+  .behavior-textarea {
+    width: 100%;
+    min-height: 120px;
+    background: rgba(10, 10, 10, 0.6);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--fg);
+    font-family: 'Lora', serif;
+    font-size: 15px;
+    line-height: 1.65;
+    padding: 16px 18px;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .behavior-textarea:focus {
+    border-color: rgba(201,169,106,0.5);
+  }
+  .behavior-textarea::placeholder {
+    color: var(--muted); font-style: italic;
+  }
+
+  .submit-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 18px;
+  }
+  .submit-btn {
+    background: rgba(201,169,106,0.12);
+    border: 1px solid rgba(201,169,106,0.35);
+    color: var(--accent);
+    padding: 12px 28px;
+    border-radius: 8px;
+    font-family: 'Lora', serif;
+    font-size: 13px;
+    letter-spacing: 2px; text-transform: uppercase;
+    font-style: italic;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, transform 0.15s;
+  }
+  .submit-btn:hover:not(:disabled) {
+    background: rgba(201,169,106,0.22);
+    border-color: var(--accent);
+    transform: translateY(-1px);
+  }
+  .submit-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .result-card {
+    background: rgba(20, 20, 20, 0.65);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(201,169,106,0.25);
+    border-radius: 16px;
+    padding: 36px 36px;
+    line-height: 1.8;
+    font-size: 15px;
+    color: var(--fg-soft);
+    white-space: pre-wrap;
+    display: none;
+  }
+  .result-card.visible { display: block; }
+
+  .result-card strong {
+    color: var(--fg);
+    font-weight: 500;
+  }
+
+  .error-msg {
+    background: rgba(201,106,106,0.08);
+    border: 1px solid rgba(201,106,106,0.3);
+    border-radius: 10px;
+    padding: 14px 18px;
+    color: #c96a6a;
+    font-size: 13px;
+    font-style: italic;
+    margin-top: 16px;
+    display: none;
+  }
+  .error-msg.visible { display: block; }
+
+  .loading-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 32px;
+    color: var(--muted);
+    font-style: italic;
+    font-size: 14px;
+    display: none;
+  }
+  .loading-row.visible { display: flex; }
+  .loading-spinner {
+    width: 18px; height: 18px;
+    border: 2px solid rgba(201,169,106,0.2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .hint {
+    text-align: center;
+    margin-top: 28px;
+    font-size: 12px;
+    color: var(--muted);
+    font-style: italic;
+    line-height: 1.6;
+  }
+
+  @media (max-width: 640px) {
+    main { padding: 96px 16px 40px; }
+    .page-title { font-size: 28px; }
+    .input-card { padding: 18px 16px; }
+    .result-card { padding: 22px 18px; font-size: 14px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    .bg-orb, body::before { animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="bg-orb o1" aria-hidden="true"></div>
+<div class="bg-orb o2" aria-hidden="true"></div>
+{% set active = "behavior_roots" %}
+{% include "_header.html" %}
+
+<main>
+  <div class="page-hero">
+    <div class="page-kicker">New</div>
+    <h1 class="page-title">Behavior Roots</h1>
+    <p class="page-sub">Describe a behavior you notice in yourself — your twin will look across everything it knows about you to find where it likely came from.</p>
+  </div>
+
+  <div class="input-card">
+    <label class="input-label" for="behaviorInput">A behavior I'd like to understand</label>
+    <textarea
+      id="behaviorInput"
+      class="behavior-textarea"
+      placeholder="e.g. I always apologize before even saying anything, even when it's not my fault…"
+      rows="4"
+    ></textarea>
+    <div class="submit-row">
+      <button class="submit-btn" id="analyzeBtn">Trace the root</button>
+    </div>
+    <div class="error-msg" id="errorMsg" role="alert"></div>
+  </div>
+
+  <div class="loading-row" id="loadingRow" aria-live="polite">
+    <div class="loading-spinner" aria-hidden="true"></div>
+    <span>Looking through your memories…</span>
+  </div>
+
+  <div class="result-card" id="resultCard" aria-live="polite"></div>
+
+  <p class="hint">Your journal entries, personality profile, and memory graph all inform this analysis. Nothing is saved.</p>
+</main>
+
+<script>
+  const behaviorInput = document.getElementById('behaviorInput');
+  const analyzeBtn = document.getElementById('analyzeBtn');
+  const loadingRow = document.getElementById('loadingRow');
+  const resultCard = document.getElementById('resultCard');
+  const errorMsg = document.getElementById('errorMsg');
+
+  function setLoading(on) {
+    loadingRow.classList.toggle('visible', on);
+    analyzeBtn.disabled = on;
+    behaviorInput.disabled = on;
+  }
+
+  function showError(msg) {
+    errorMsg.textContent = msg;
+    errorMsg.classList.add('visible');
+  }
+
+  function clearError() {
+    errorMsg.textContent = '';
+    errorMsg.classList.remove('visible');
+  }
+
+  function renderResult(text) {
+    resultCard.textContent = '';
+    resultCard.classList.remove('visible');
+    void resultCard.offsetWidth;
+    resultCard.textContent = text;
+    resultCard.classList.add('visible');
+    resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  analyzeBtn.addEventListener('click', async () => {
+    const behavior = behaviorInput.value.trim();
+    if (!behavior) {
+      showError('Please describe a behavior first.');
+      return;
+    }
+    clearError();
+    resultCard.classList.remove('visible');
+    setLoading(true);
+
+    try {
+      const res = await fetch('/behavior-roots/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ behavior }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showError(data.error || 'Something went wrong. Please try again.');
+      } else if (data.analysis) {
+        renderResult(data.analysis);
+      } else {
+        showError('No analysis returned. Please try again.');
+      }
+    } catch (e) {
+      showError('Network error. Please check your connection and try again.');
+    } finally {
+      setLoading(false);
+    }
+  });
+</script>
+</body>
+</html>
