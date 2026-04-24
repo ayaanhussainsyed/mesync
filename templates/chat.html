@@ -18,6 +18,7 @@
     --header-h: 68px;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
   html, body {
     background: var(--bg); color: var(--fg); font-family: 'Lora', serif;
     font-weight: 400; height: 100vh;
@@ -288,6 +289,31 @@
   .persona-badge-name strong { font-weight: 500; }
 
   .chat-head-actions { display: flex; gap: 8px; }
+
+  /* Primary "enter voice mode" toggle — pill with icon + label so it reads
+     as the discoverable way to flip between text and voice chat. */
+  .voice-toggle {
+    width: auto !important;
+    padding: 0 14px;
+    gap: 8px;
+    border-color: rgba(201,169,106,0.25) !important;
+    color: var(--accent) !important;
+    background: rgba(201,169,106,0.05);
+  }
+  .voice-toggle svg { width: 14px; height: 14px; }
+  .voice-toggle-label {
+    font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+    font-style: italic;
+  }
+  .voice-toggle:hover { background: rgba(201,169,106,0.12); }
+  .voice-toggle.active {
+    background: var(--accent); color: var(--bg) !important;
+    border-color: var(--accent) !important;
+  }
+  @media (max-width: 600px) {
+    .voice-toggle-label { display: none; }
+    .voice-toggle { width: 36px !important; padding: 0; }
+  }
 
   /* ================= Hands-free voice overlay ================= */
   .voice-mode {
@@ -673,8 +699,9 @@
       <header class="chat-head">
         <div class="persona-badge" id="personaBadge"></div>
         <div class="chat-head-actions">
-          <button class="tool-btn" id="voiceModeBtn" aria-label="Enter hands-free voice mode" title="Hands-free voice">
+          <button class="tool-btn voice-toggle" id="voiceModeBtn" aria-pressed="false" aria-label="Toggle hands-free voice mode" title="Voice mode">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+            <span class="voice-toggle-label">Voice</span>
           </button>
           <button class="tool-btn" id="voiceOutputBtn" aria-pressed="false" aria-label="Play twin responses aloud" title="Voice output">
             <svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14"/><path d="M15.54 8.46a5 5 0 010 7.07"/></svg>
@@ -1125,7 +1152,21 @@
       this.el.stopBtn.hidden = (s !== 'speaking');
     },
 
+    _syncToggle() {
+      const btn = document.getElementById('voiceModeBtn');
+      if (!btn) return;
+      btn.classList.toggle('active', this.active);
+      btn.setAttribute('aria-pressed', String(this.active));
+      btn.setAttribute('title', this.active ? 'Exit voice mode' : 'Toggle voice mode');
+    },
+
+    toggle() {
+      if (this.active) this.close();
+      else this.open();
+    },
+
     async open() {
+      if (this.active) return;
       if (!conversationId) {
         alert('Pick a persona first, then open voice mode.');
         return;
@@ -1133,6 +1174,7 @@
       this.el.persona.textContent = (PERSONA_BY_ID[currentMode] || PERSONA_BY_ID.chat).name;
       this.el.root.hidden = false;
       this.active = true;
+      this._syncToggle();
       this.setStatus('listening', 'Say anything.');
       try {
         await this.beginListening();
@@ -1143,11 +1185,13 @@
     },
 
     close() {
+      if (!this.active) return;
       this.active = false;
       this.stopListening();
       this.stopTTS();
       this.setIntensity(0);
       this.el.root.hidden = true;
+      this._syncToggle();
     },
 
     async beginListening() {
@@ -1389,7 +1433,7 @@
     },
   };
 
-  document.getElementById('voiceModeBtn').addEventListener('click', () => voiceMode.open());
+  document.getElementById('voiceModeBtn').addEventListener('click', () => voiceMode.toggle());
   document.getElementById('voiceClose').addEventListener('click', () => voiceMode.close());
   document.getElementById('voiceExit').addEventListener('click', () => voiceMode.close());
   document.getElementById('voiceStopSpeaking').addEventListener('click', () => voiceMode.skipSpeaking());
